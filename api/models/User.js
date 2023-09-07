@@ -98,7 +98,7 @@ module.exports.validateUser = (user) => {
       .allow('')
       .min(2)
       .max(80)
-      .regex(/^[a-zA-Z0-9_.-@#$%&*() ]+$/),
+      .regex(/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFFa-zA-Z0-9_.-@#$%&*() ]+$/),
     password: Joi.string().min(8).max(128).allow('').allow(null),
   };
 
