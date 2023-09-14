@@ -268,13 +268,25 @@ class AnthropicClient extends BaseClient {
     };
 
     let text = '';
+    const {
+      stream,
+      model,
+      temperature,
+      maxOutputTokens,
+      stop: stop_sequences,
+      topP: top_p,
+      topK: top_k,
+    } = this.modelOptions;
     const requestOptions = {
       prompt: payload,
-      model: this.modelOptions.model,
-      stream: this.modelOptions.stream || true,
-      max_tokens_to_sample: this.modelOptions.maxOutputTokens || 1500,
+      model,
+      stream: stream || true,
+      max_tokens_to_sample: maxOutputTokens || 1500,
+      stop_sequences,
+      temperature,
       metadata,
-      ...modelOptions,
+      top_p,
+      top_k,
     };
     if (this.options.debug) {
       console.log('AnthropicClient: requestOptions');
