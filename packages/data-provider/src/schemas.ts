@@ -77,6 +77,7 @@ export const tMessageSchema = z.object({
   sender: z.string(),
   text: z.string(),
   generation: z.string().nullable().optional(),
+  isEdited: z.boolean().optional(),
   isCreatedByUser: z.boolean(),
   error: z.boolean(),
   createdAt: z
@@ -266,7 +267,7 @@ export const anthropicSchema = tConversationSchema
     modelLabel: obj.modelLabel ?? null,
     promptPrefix: obj.promptPrefix ?? null,
     temperature: obj.temperature ?? 1,
-    maxOutputTokens: obj.maxOutputTokens ?? 1024,
+    maxOutputTokens: obj.maxOutputTokens ?? 4000,
     topP: obj.topP ?? 0.7,
     topK: obj.topK ?? 5,
   }))
@@ -275,7 +276,7 @@ export const anthropicSchema = tConversationSchema
     modelLabel: null,
     promptPrefix: null,
     temperature: 1,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 4000,
     topP: 0.7,
     topK: 5,
   }));

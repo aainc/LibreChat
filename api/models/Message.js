@@ -1,4 +1,7 @@
+const { z } = require('zod');
 const Message = require('./schema/messageSchema');
+
+const idSchema = z.string().uuid();
 
 module.exports = {
   Message,
@@ -14,6 +17,7 @@ module.exports = {
     error,
     unfinished,
     cancelled,
+    isEdited = false,
     finish_reason = null,
     tokenCount = null,
     plugin = null,
@@ -21,8 +25,9 @@ module.exports = {
     model = null,
   }) {
     try {
-      if (!conversationId) {
-        return console.log('Message not saved: no conversationId');
+      const validConvoId = idSchema.safeParse(conversationId);
+      if (!validConvoId.success) {
+        return;
       }
       // may also need to update the conversation here
       await Message.findOneAndUpdate(
@@ -34,6 +39,7 @@ module.exports = {
           sender,
           text,
           isCreatedByUser,
+          isEdited,
           finish_reason,
           error,
           unfinished,
@@ -63,6 +69,7 @@ module.exports = {
   async updateMessage(message) {
     try {
       const { messageId, ...update } = message;
+      update.isEdited = true;
       const updatedMessage = await Message.findOneAndUpdate({ messageId }, update, { new: true });
 
       if (!updatedMessage) {
@@ -77,6 +84,7 @@ module.exports = {
         text: updatedMessage.text,
         isCreatedByUser: updatedMessage.isCreatedByUser,
         tokenCount: updatedMessage.tokenCount,
+        isEdited: true,
       };
     } catch (err) {
       console.error(`Error updating message: ${err}`);
