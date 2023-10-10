@@ -30,7 +30,7 @@ export default function SubmitButton({
   const clickHandler = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
-      trackingEvent('send_message');
+      trackingEvent('submit_message');
       submitMessage();
     },
     [submitMessage],
@@ -41,7 +41,7 @@ export default function SubmitButton({
   }, []);
 
   const trackingEvent = (action: string) => {
-    gtag('event', action);
+    gtag('event', action, {});
   };
 
   if (isSubmitting) {
