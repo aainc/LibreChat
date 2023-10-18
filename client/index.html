@@ -32,7 +32,7 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-VKRZQ6WVRZ"></script>
     <script>
-      if(!(window.location.pathname == '/login'|| window.location.pathname == '/')) {
+      if(window.location.pathname != '/login') {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
