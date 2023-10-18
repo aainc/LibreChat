@@ -2,12 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import { useUpdateConversationMutation } from 'librechat-data-provider';
 import RenameButton from './RenameButton';
-import DeleteButton from './DeleteButton';
 import { MinimalIcon } from '~/components/Endpoints';
 import { useConversations, useConversation } from '~/hooks';
 import store from '~/store';
 
-export default function Conversation({ conversation, retainView }) {
+export default function Conversation({ conversation }) {
   const [currentConversation, setCurrentConversation] = useRecoilState(store.conversation);
   const setSubmission = useSetRecoilState(store.submission);
 
@@ -52,10 +51,10 @@ export default function Conversation({ conversation, retainView }) {
     }, 25);
   };
 
-  const cancelHandler = (e) => {
-    e.preventDefault();
-    setRenaming(false);
-  };
+  // const cancelHandler = (e) => {
+  //   e.preventDefault();
+  //   setRenaming(false);
+  // };
 
   const onRename = (e) => {
     e.preventDefault();
@@ -129,13 +128,13 @@ export default function Conversation({ conversation, retainView }) {
             renameHandler={renameHandler}
             onRename={onRename}
           />
-          <DeleteButton
+          {/* <DeleteButton
             conversationId={conversationId}
             renaming={renaming}
             cancelHandler={cancelHandler}
             retainView={retainView}
             title={title}
-          />
+          /> */}
         </div>
       ) : (
         <div className="absolute inset-y-0 right-0 z-10 w-8 rounded-r-md bg-gradient-to-l from-gray-900 group-hover:from-gray-700/70" />
