@@ -168,14 +168,14 @@ function General() {
         <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-700">
           <LangSelector langcode={selectedLang} onChange={changeLang} />
         </div>
-        <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-700">
+        {/* <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-700">
           <ClearChatsButton
             confirmClear={confirmClear}
             onClick={clearConvos}
             showText={true}
             mutation={clearConvosMutation}
           />
-        </div>
+        </div> */}
         <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-700">
           <AutoScrollSwitch />
         </div>
