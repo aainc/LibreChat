@@ -3,6 +3,7 @@ import { StopGeneratingIcon } from '~/components';
 import { Settings } from 'lucide-react';
 import { SetKeyDialog } from './SetKeyDialog';
 import { useUserKey, useLocalize } from '~/hooks';
+import gtag from 'react-ga4/types/gtag';
 
 export default function SubmitButton({
   conversation,
