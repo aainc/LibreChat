@@ -1,12 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import { useUpdateConversationMutation } from 'librechat-data-provider';
-import RenameButton from './RenameButton';
-import { MinimalIcon } from '~/components/Endpoints';
 import { useConversations, useConversation } from '~/hooks';
+import { MinimalIcon } from '~/components/Endpoints';
+import { NotificationSeverity } from '~/common';
+import { useToastContext } from '~/Providers';
+import DeleteButton from './DeleteButton';
+import RenameButton from './RenameButton';
 import store from '~/store';
 
-export default function Conversation({ conversation }) {
+export default function Conversation({ conversation, retainView }) {
+  const { showToast } = useToastContext();
   const [currentConversation, setCurrentConversation] = useRecoilState(store.conversation);
   const setSubmission = useSetRecoilState(store.submission);
 
@@ -62,7 +66,28 @@ export default function Conversation({ conversation }) {
     if (titleInput === title) {
       return;
     }
-    updateConvoMutation.mutate({ conversationId, title: titleInput });
+    updateConvoMutation.mutate(
+      { conversationId, title: titleInput },
+      {
+        onSuccess: () => {
+          refreshConversations();
+          if (conversationId == currentConversation?.conversationId) {
+            setCurrentConversation((prevState) => ({
+              ...prevState,
+              title: titleInput,
+            }));
+          }
+        },
+        onError: () => {
+          setTitleInput(title);
+          showToast({
+            message: 'Failed to rename conversation',
+            severity: NotificationSeverity.ERROR,
+            showIcon: true,
+          });
+        },
+      },
+    );
   };
 
   const icon = MinimalIcon({
@@ -72,19 +97,6 @@ export default function Conversation({ conversation }) {
     error: false,
     className: 'mr-0',
   });
-
-  useEffect(() => {
-    if (updateConvoMutation.isSuccess) {
-      refreshConversations();
-      if (conversationId == currentConversation?.conversationId) {
-        setCurrentConversation((prevState) => ({
-          ...prevState,
-          title: titleInput,
-        }));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateConvoMutation.isSuccess]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {

@@ -275,6 +275,7 @@ export default {
   com_nav_lang_japanese: '日本語',
   com_nav_lang_swedish: 'Svenska',
   com_nav_lang_korean: '한국어',
+  com_nav_lang_vietnamese: 'Tiếng Việt',
   com_nav_lang_traditionalchinese: '繁體中文',
   aa_prompt_title1: 'メルエビ作成したいとき',
   aa_prompt_body1: `下記でエビデンス作ってください。作成時注意についてはコメントしなくて良いです。
