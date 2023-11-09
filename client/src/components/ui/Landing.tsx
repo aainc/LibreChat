@@ -113,7 +113,7 @@ export default function Landing() {
             </h2>
             <ul className="m-auto flex w-full flex-col gap-3.5 sm:max-w-md">
               <li className='w-full rounded-md bg-gray-50 p-3 dark:bg-white/5'>
-                <a href="https://docs.google.com/document/d/1hK2OfmeH7WQaxqAl4k0C3DaIzY4ty9IPsXitzn_YS0M/edit#heading=h.llh54218s6o9">ChatGPT利用ルール</a>
+                <a href="https://docs.google.com/document/d/1hK2OfmeH7WQaxqAl4k0C3DaIzY4ty9IPsXitzn_YS0M/edit#heading=h.llh54218s6o9">ChatGPT利用ルール→</a>
               </li>
               <li className="w-full rounded-md bg-gray-50 p-3 dark:bg-white/5">
                 {localize('com_ui_limitation_incorrect_info')}
