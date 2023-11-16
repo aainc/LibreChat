@@ -109,20 +109,41 @@ export default function Landing() {
           <div className="mb-8 flex flex-1 flex-col gap-3.5 md:mb-auto">
             <h2 className="m-auto flex items-center gap-3 text-lg font-normal md:flex-col md:gap-2">
               <CautionIcon />
-              {localize('com_ui_limitations')}
+              その他諸々
             </h2>
             <ul className="m-auto flex w-full flex-col gap-3.5 sm:max-w-md">
               <li className='w-full rounded-md bg-gray-50 p-3 dark:bg-white/5'>
-                <a href="https://docs.google.com/document/d/1hK2OfmeH7WQaxqAl4k0C3DaIzY4ty9IPsXitzn_YS0M/edit#heading=h.llh54218s6o9">ChatGPT利用ルール→</a>
+                <a target="_blank" href="https://docs.google.com/document/d/1hK2OfmeH7WQaxqAl4k0C3DaIzY4ty9IPsXitzn_YS0M/edit#heading=h.llh54218s6o9" rel="noreferrer">ChatGPT利用ルール→</a>
+              </li>
+              <li className='w-full rounded-md bg-gray-50 p-3 dark:bg-white/5'>
+                <a target="_blank" href="https://docs.google.com/document/d/1aBUh99fuzN2cTDSK7UQYucwlWtvs5M7yq5EmKLPp9nw/edit" rel="noreferrer">もっと色々見たい人へ→</a>
               </li>
               <li className="w-full rounded-md bg-gray-50 p-3 dark:bg-white/5">
-                {localize('com_ui_limitation_incorrect_info')}
+                <ul className='items-start'>
+                  <li>欲しい回答が出ない時入れてほしいもの-①前提条件</li>
+                  <ul>
+                    <li>■相談事項の背景情報や目的</li>
+                    <li>■どんな立場や観点から回答して欲しいのか</li>
+                  </ul>
+                </ul>
               </li>
               <li className="w-full rounded-md bg-gray-50 p-3 dark:bg-white/5">
-                {localize('com_ui_limitation_harmful_biased')}
+                <ul className='items-start'>
+                  <li>欲しい回答が出ない時入れてほしいもの-②言葉の定義</li>
+                  <ul>
+                    <li>■ロイヤル積極層は「継続意向8点以上、継続回数3回以上」とします</li>
+                    <li>■予算は「国内上場企業の広告費」とします</li>
+                  </ul>
+                </ul>
               </li>
               <li className="w-full rounded-md bg-gray-50 p-3 dark:bg-white/5">
-                {localize('com_ui_limitation_limited_2021')}
+                <ul className='items-start'>
+                  <li>欲しい回答が出ない時入れてほしいもの-③成果物の明示</li>
+                  <ul>
+                    <li>■欲しいアドバイスや制作物の具体的な形（フォーマット、数）</li>
+                    <li>■成果物の具体例（例示して示すと精度が上がる）</li>
+                  </ul>
+                </ul>
               </li>
             </ul>
           </div>
