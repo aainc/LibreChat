@@ -15,6 +15,8 @@ import TraditionalChinese from './languages/ZhTraditional';
 import Vietnamese from './languages/Vi';
 import Turkish from './languages/Tr';
 import Dutch from './languages/Nl';
+import Indonesia from './languages/Id';
+
 // === import additional language files here === //
 
 const languageMap: { [key: string]: unknown } = {
@@ -35,6 +37,7 @@ const languageMap: { [key: string]: unknown } = {
   'vi-VN': Vietnamese,
   'tr-TR': Turkish,
   'nl-NL': Dutch,
+  'id-ID': Indonesia,
   // Add additional language mappings here
 };
 
@@ -57,8 +60,7 @@ if (!String.prototype.format) {
 // input: language code in string
 // returns an object of translated strings in the language
 export const getTranslations = (langCode: string) => {
-  const language = languageMap[langCode] || English;
-  return language;
+  return languageMap[langCode] || English;
 };
 
 // input: language code in string & phrase key in string
