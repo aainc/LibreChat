@@ -15,6 +15,7 @@ export default {
   com_ui_limitation_harmful_biased:
     'May occasionally produce harmful instructions or biased content',
   com_ui_limitation_limited_2021: 'Limited knowledge of world and events after 2021',
+  com_ui_experimental: 'Experimental Features',
   com_ui_input: 'Input',
   com_ui_close: 'Close',
   com_ui_model: 'Model',
@@ -33,9 +34,12 @@ export default {
   com_ui_enter: 'Enter',
   com_ui_submit: 'Submit',
   com_ui_upload_success: 'Successfully uploaded file',
-  com_ui_upload_invalid: 'Invalid file for upload',
+  com_ui_upload_error: 'There was an error uploading your file',
+  com_ui_upload_invalid: 'Invalid file for upload. Must be an image not exceeding 2 MB',
   com_ui_cancel: 'Cancel',
   com_ui_save: 'Save',
+  com_ui_save_submit: 'Save & Submit',
+  com_user_message: 'You',
   com_ui_copy_to_clipboard: 'Copy to clipboard',
   com_ui_copied_to_clipboard: 'Copied to clipboard',
   com_ui_regenerate: 'Regenerate',
@@ -51,6 +55,9 @@ export default {
   com_ui_delete: 'Delete',
   com_ui_delete_conversation: 'Delete chat?',
   com_ui_delete_conversation_confirm: 'This will delete',
+  com_ui_preview: 'Preview',
+  com_ui_upload: 'Upload',
+  com_ui_connect: 'Connect',
   com_auth_error_login:
     'Unable to login with the information provided. Please check your credentials and try again.',
   com_auth_error_login_rl:
@@ -156,6 +163,10 @@ export default {
     'Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model\'s likelihood to repeat the same line verbatim.',
   com_endpoint_openai_pres:
     'Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model\'s likelihood to talk about new topics.',
+  com_endpoint_openai_resend:
+    'Resend all previously attached images. Note: this can significantly increase token cost and you may experience errors with many image attachments.',
+  com_endpoint_openai_detail:
+    'The resolution for Vision requests. "Low" is cheaper and faster, "High" is more detailed and expensive, and "Auto" will automatically choose between the two based on the image resolution.',
   com_endpoint_openai_custom_name_placeholder: 'Set a custom name for ChatGPT',
   com_endpoint_openai_prompt_prefix_placeholder:
     'Set custom instructions to include in System Message. Default: none',
@@ -171,6 +182,8 @@ export default {
   com_endpoint_frequency_penalty: 'Frequency Penalty',
   com_endpoint_presence_penalty: 'Presence Penalty',
   com_endpoint_plug_use_functions: 'Use Functions',
+  com_endpoint_plug_resend_images: 'Resend Images',
+  com_endpoint_plug_image_detail: 'Image Detail',
   com_endpoint_plug_skip_completion: 'Skip Completion',
   com_endpoint_disabled_with_tools: 'disabled with tools',
   com_endpoint_disabled_with_tools_placeholder: 'Disabled with Tools Selected',
@@ -253,7 +266,15 @@ export default {
     'Make sure to click \'Create and Continue\' to give at least the \'Vertex AI User\' role. Lastly, create a JSON key to import here.',
   com_nav_welcome_message: 'How can I help you today?',
   com_nav_auto_scroll: 'Auto-scroll to Newest on Open',
+  com_nav_modular_chat: 'Enable switching Endpoints mid-conversation',
+  com_nav_latex_parsing: 'Parsing LaTeX in messages (may affect performance)',
+  com_nav_profile_picture: 'Profile Picture',
+  com_nav_change_picture: 'Change picture',
   com_nav_plugin_store: 'Plugin store',
+  com_show_agent_settings: 'Show Agent Settings',
+  com_show_completion_settings: 'Show Completion Settings',
+  com_hide_examples: 'Hide Examples',
+  com_show_examples: 'Show Examples',
   com_nav_plugin_search: 'Search plugins',
   com_nav_plugin_auth_error:
     'There was an error attempting to authenticate this plugin. Please try again.',
@@ -271,6 +292,7 @@ export default {
   com_nav_theme_system: 'System',
   com_nav_theme_dark: 'Dark',
   com_nav_theme_light: 'Light',
+  com_nav_user_name_display: 'Display username in messages',
   com_nav_clear_all_chats: 'Clear all chats',
   com_nav_confirm_clear: 'Confirm Clear',
   com_nav_close_sidebar: 'Close sidebar',
@@ -285,7 +307,9 @@ export default {
   com_nav_settings: 'Settings',
   com_nav_search_placeholder: 'Search messages',
   com_nav_setting_general: 'General',
+  com_nav_setting_beta: 'Beta features',
   com_nav_setting_data: 'Data controls',
+  com_nav_setting_account: 'Account',
   com_nav_language: 'Language',
   com_nav_lang_auto: 'Auto detect',
   com_nav_lang_english: 'English',
@@ -450,4 +474,5 @@ export default {
   ・メルマガ本文の語尾はですます調にする
   ・誰向けにおすすめの内容なのかを分かりやすく記載する
   `,
+  com_nav_lang_indonesia: 'Indonesia',
 };

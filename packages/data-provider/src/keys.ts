@@ -16,6 +16,7 @@ export enum QueryKeys {
   assistants = 'assistants',
   assistant = 'assistant',
   endpointsConfigOverride = 'endpointsConfigOverride',
+  files = 'files',
 }
 
 export enum MutationKeys {
@@ -24,4 +25,5 @@ export enum MutationKeys {
   updatePreset = 'updatePreset',
   deletePreset = 'deletePreset',
   logoutUser = 'logoutUser',
+  avatarUpload = 'avatarUpload',
 }
