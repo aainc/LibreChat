@@ -2,12 +2,8 @@ import { v4 } from 'uuid';
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRecoilState, useResetRecoilState, useSetRecoilState } from 'recoil';
-import {
-  QueryKeys,
-  parseCompactConvo,
-  getResponseSender,
-  useGetMessagesByConvoId,
-} from 'librechat-data-provider';
+import { QueryKeys, parseCompactConvo, getResponseSender } from 'librechat-data-provider';
+import { useGetMessagesByConvoId } from 'librechat-data-provider/react-query';
 import type {
   TMessage,
   TSubmission,
@@ -18,8 +14,8 @@ import type {
 import type { TAskFunction } from '~/common';
 import useSetFilesToDelete from './useSetFilesToDelete';
 import { useAuthContext } from './AuthContext';
+import useUserKey from './Input/useUserKey';
 import useNewConvo from './useNewConvo';
-import useUserKey from './useUserKey';
 import store from '~/store';
 
 // this to be set somewhere else
@@ -324,7 +320,6 @@ export default function useChatHelpers(index = 0, paramId: string | undefined) {
   const [showPopover, setShowPopover] = useRecoilState(store.showPopoverFamily(index));
   const [abortScroll, setAbortScroll] = useRecoilState(store.abortScrollFamily(index));
   const [preset, setPreset] = useRecoilState(store.presetByIndex(index));
-  const [textareaHeight, setTextareaHeight] = useRecoilState(store.textareaHeightFamily(index));
   const [optionSettings, setOptionSettings] = useRecoilState(store.optionSettingsFamily(index));
   const [showAgentSettings, setShowAgentSettings] = useRecoilState(
     store.showAgentSettingsFamily(index),
@@ -364,8 +359,6 @@ export default function useChatHelpers(index = 0, paramId: string | undefined) {
     setOptionSettings,
     showAgentSettings,
     setShowAgentSettings,
-    textareaHeight,
-    setTextareaHeight,
     files,
     setFiles,
     invalidateConvos,

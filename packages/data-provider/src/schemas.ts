@@ -22,6 +22,48 @@ export const defaultEndpoints: EModelEndpoint[] = [
   EModelEndpoint.anthropic,
 ];
 
+export const defaultModels = {
+  [EModelEndpoint.google]: [
+    'gemini-pro',
+    'gemini-pro-vision',
+    'chat-bison',
+    'chat-bison-32k',
+    'codechat-bison',
+    'codechat-bison-32k',
+    'text-bison',
+    'text-bison-32k',
+    'text-unicorn',
+    'code-gecko',
+    'code-bison',
+    'code-bison-32k',
+  ],
+  [EModelEndpoint.anthropic]: [
+    'claude-2.1',
+    'claude-2',
+    'claude-1.2',
+    'claude-1',
+    'claude-1-100k',
+    'claude-instant-1',
+    'claude-instant-1-100k',
+  ],
+  [EModelEndpoint.openAI]: [
+    'gpt-3.5-turbo-16k-0613',
+    'gpt-3.5-turbo-16k',
+    'gpt-4-1106-preview',
+    'gpt-3.5-turbo',
+    'gpt-3.5-turbo-1106',
+    'gpt-4-vision-preview',
+    'gpt-4',
+    'gpt-3.5-turbo-instruct-0914',
+    'gpt-3.5-turbo-0613',
+    'gpt-3.5-turbo-0301',
+    'gpt-3.5-turbo-instruct',
+    'gpt-4-0613',
+    'text-davinci-003',
+    'gpt-4-0314',
+  ],
+};
+
 export const alternateName = {
   [EModelEndpoint.openAI]: 'OpenAI',
   [EModelEndpoint.assistant]: 'Assistants',
@@ -29,9 +71,50 @@ export const alternateName = {
   [EModelEndpoint.bingAI]: 'Bing',
   [EModelEndpoint.chatGPTBrowser]: 'ChatGPT',
   [EModelEndpoint.gptPlugins]: 'Plugins',
-  [EModelEndpoint.google]: 'PaLM',
+  [EModelEndpoint.google]: 'Google',
   [EModelEndpoint.anthropic]: 'Anthropic',
 };
+
+export enum AuthKeys {
+  GOOGLE_SERVICE_KEY = 'GOOGLE_SERVICE_KEY',
+  GOOGLE_API_KEY = 'GOOGLE_API_KEY',
+}
+
+export const endpointSettings = {
+  [EModelEndpoint.google]: {
+    model: {
+      default: 'chat-bison',
+    },
+    maxOutputTokens: {
+      min: 1,
+      max: 2048,
+      step: 1,
+      default: 1024,
+      maxGeminiPro: 8192,
+      defaultGeminiPro: 8192,
+    },
+    temperature: {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.2,
+    },
+    topP: {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      default: 0.8,
+    },
+    topK: {
+      min: 1,
+      max: 40,
+      step: 0.01,
+      default: 40,
+    },
+  },
+};
+
+const google = endpointSettings[EModelEndpoint.google];
 
 export const EndpointURLs: { [key in EModelEndpoint]: string } = {
   [EModelEndpoint.azureOpenAI]: '/api/ask/azureOpenAI',
@@ -53,25 +136,18 @@ export const modularEndpoints = new Set<EModelEndpoint | string>([
 
 export const supportsFiles = {
   [EModelEndpoint.openAI]: true,
+  [EModelEndpoint.google]: true,
   [EModelEndpoint.assistant]: true,
+  [EModelEndpoint.azureOpenAI]: true,
 };
 
-export const openAIModels = [
-  'gpt-3.5-turbo-16k-0613',
-  'gpt-3.5-turbo-16k',
-  'gpt-4-1106-preview',
-  'gpt-3.5-turbo',
-  'gpt-3.5-turbo-1106',
-  'gpt-4-vision-preview',
-  'gpt-4',
-  'gpt-3.5-turbo-instruct-0914',
-  'gpt-3.5-turbo-0613',
-  'gpt-3.5-turbo-0301',
-  'gpt-3.5-turbo-instruct',
-  'gpt-4-0613',
-  'text-davinci-003',
-  'gpt-4-0314',
-];
+export const supportsBalanceCheck = {
+  [EModelEndpoint.openAI]: true,
+  [EModelEndpoint.azureOpenAI]: true,
+  [EModelEndpoint.gptPlugins]: true,
+};
+
+export const visionModels = ['gpt-4-vision', 'llava-13b', 'gemini-pro-vision'];
 
 export const eModelEndpointSchema = z.nativeEnum(EModelEndpoint);
 
@@ -225,6 +301,8 @@ export const tPresetSchema = tConversationSchema
       conversationId: z.string().optional(),
       presetId: z.string().nullable().optional(),
       title: z.string().nullable().optional(),
+      defaultPreset: z.boolean().optional(),
+      order: z.number().optional(),
     }),
   );
 
@@ -271,24 +349,40 @@ export const googleSchema = tConversationSchema
     topP: true,
     topK: true,
   })
-  .transform((obj) => ({
-    ...obj,
-    model: obj.model ?? 'chat-bison',
-    modelLabel: obj.modelLabel ?? null,
-    promptPrefix: obj.promptPrefix ?? null,
-    temperature: obj.temperature ?? 0.2,
-    maxOutputTokens: obj.maxOutputTokens ?? 1024,
-    topP: obj.topP ?? 0.95,
-    topK: obj.topK ?? 40,
-  }))
+  .transform((obj) => {
+    const isGeminiPro = obj?.model?.toLowerCase()?.includes('gemini-pro');
+
+    const maxOutputTokensMax = isGeminiPro
+      ? google.maxOutputTokens.maxGeminiPro
+      : google.maxOutputTokens.max;
+    const maxOutputTokensDefault = isGeminiPro
+      ? google.maxOutputTokens.defaultGeminiPro
+      : google.maxOutputTokens.default;
+
+    let maxOutputTokens = obj.maxOutputTokens ?? maxOutputTokensDefault;
+    maxOutputTokens = Math.min(maxOutputTokens, maxOutputTokensMax);
+
+    return {
+      ...obj,
+      model: obj.model ?? google.model.default,
+      modelLabel: obj.modelLabel ?? null,
+      promptPrefix: obj.promptPrefix ?? null,
+      examples: obj.examples ?? [{ input: { content: '' }, output: { content: '' } }],
+      temperature: obj.temperature ?? google.temperature.default,
+      maxOutputTokens,
+      topP: obj.topP ?? google.topP.default,
+      topK: obj.topK ?? google.topK.default,
+    };
+  })
   .catch(() => ({
-    model: 'chat-bison',
+    model: google.model.default,
     modelLabel: null,
     promptPrefix: null,
-    temperature: 0.2,
-    maxOutputTokens: 1024,
-    topP: 0.95,
-    topK: 40,
+    examples: [{ input: { content: '' }, output: { content: '' } }],
+    temperature: google.temperature.default,
+    maxOutputTokens: google.maxOutputTokens.default,
+    topP: google.topP.default,
+    topK: google.topK.default,
   }));
 
 export const bingAISchema = tConversationSchema
@@ -537,7 +631,15 @@ export const getResponseSender = (endpointOption: TEndpointOption): string => {
   }
 
   if (endpoint === EModelEndpoint.google) {
-    return modelLabel ?? 'PaLM2';
+    if (modelLabel) {
+      return modelLabel;
+    } else if (model && model.includes('gemini')) {
+      return 'Gemini';
+    } else if (model && model.includes('code')) {
+      return 'Codey';
+    }
+
+    return 'PaLM2';
   }
 
   return '';
@@ -588,19 +690,19 @@ export const compactGoogleSchema = tConversationSchema
   })
   .transform((obj) => {
     const newObj: Partial<TConversation> = { ...obj };
-    if (newObj.model === 'chat-bison') {
+    if (newObj.model === google.model.default) {
       delete newObj.model;
     }
-    if (newObj.temperature === 0.2) {
+    if (newObj.temperature === google.temperature.default) {
       delete newObj.temperature;
     }
-    if (newObj.maxOutputTokens === 1024) {
+    if (newObj.maxOutputTokens === google.maxOutputTokens.default) {
       delete newObj.maxOutputTokens;
     }
-    if (newObj.topP === 0.95) {
+    if (newObj.topP === google.topP.default) {
       delete newObj.topP;
     }
-    if (newObj.topK === 40) {
+    if (newObj.topK === google.topK.default) {
       delete newObj.topK;
     }
 

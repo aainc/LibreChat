@@ -4,13 +4,12 @@ import {
   /* @ts-ignore */
   SSE,
   createPayload,
-  useGetUserBalance,
   tMessageSchema,
   tConversationSchema,
-  useGetStartupConfig,
   EModelEndpoint,
   removeNullishValues,
 } from 'librechat-data-provider';
+import { useGetUserBalance, useGetStartupConfig } from 'librechat-data-provider/react-query';
 import type { TResPlugin, TMessage, TConversation, TSubmission } from 'librechat-data-provider';
 import { useAuthContext } from './AuthContext';
 import useChatHelpers from './useChatHelpers';
@@ -173,7 +172,7 @@ export default function useSSE(submission: TSubmission | null, index = 0) {
 
   const finalHandler = (data: TResData, submission: TSubmission) => {
     const { requestMessage, responseMessage, conversation } = data;
-    const { messages, isRegenerate = false } = submission;
+    const { messages, conversation: submissionConvo, isRegenerate = false } = submission;
 
     // update the messages
     if (isRegenerate) {
@@ -200,6 +199,11 @@ export default function useSSE(submission: TSubmission | null, index = 0) {
         ...conversation,
       };
 
+      // Revert to previous model if the model was auto-switched by backend due to message attachments
+      if (conversation.model?.includes('vision') && !submissionConvo.model?.includes('vision')) {
+        update.model = submissionConvo?.model;
+      }
+
       setStorage(update);
       return update;
     });
@@ -209,6 +213,11 @@ export default function useSSE(submission: TSubmission | null, index = 0) {
 
   const errorHandler = (data: TResData, submission: TSubmission) => {
     const { messages, message } = submission;
+
+    if (!data.conversationId) {
+      setIsSubmitting(false);
+      return;
+    }
 
     console.log('Error:', data);
     const errorResponse = tMessageSchema.parse({
