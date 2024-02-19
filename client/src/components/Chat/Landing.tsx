@@ -44,7 +44,8 @@ export default function Landing({ Header }: { Header?: ReactNode }) {
         </div>
         <div className="mb-5 text-2xl font-medium dark:text-white">
           {/* {localize('com_nav_welcome_message')}<br /> */}
-          <a href="https://prompt.chieco.chat" target="_blank" rel='noreferrer'>プロンプトテンプレート集を開く→</a>
+          <a href="https://prompt.chieco.chat" target="_blank" rel='noreferrer'>プロンプトテンプレート集を開く→</a><br />
+          ID:chieco Pass:kawaii でログインしてください。
         </div>
       </div>
     </div>
