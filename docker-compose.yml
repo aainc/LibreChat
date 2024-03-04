@@ -7,13 +7,10 @@ services:
   api:
     container_name: LibreChat
     ports:
-      - 3080:3080
+      - "${PORT}:${PORT}"
     depends_on:
       - mongodb
-    image: librechat
-    build:
-      context: .
-      target: node
+    image: ghcr.io/danny-avila/librechat-dev:latest
     restart: always
     user: "${UID}:${GID}"
     extra_hosts:
@@ -25,6 +22,7 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./images:/app/client/public/images
+      - ./logs:/app/api/logs
   mongodb:
     container_name: chat-mongodb
     ports:  # Uncomment this to access mongodb from outside docker, not safe in deployment
