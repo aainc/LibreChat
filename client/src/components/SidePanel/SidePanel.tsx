@@ -51,13 +51,13 @@ export default function SidePanel({
     const userProvidesKey = !!assistants?.userProvide;
     const keyProvided = userProvidesKey ? !!keyExpiry?.expiresAt : true;
     if (assistants && assistants.disableBuilder !== true && keyProvided) {
-      // links.push({
-      //   title: 'com_sidepanel_assistant_builder',
-      //   label: '',
-      //   icon: Blocks,
-      //   id: 'assistants',
-      //   Component: PanelSwitch,
-      // });
+      links.push({
+        title: 'com_sidepanel_assistant_builder',
+        label: '',
+        icon: Blocks,
+        id: 'assistants',
+        Component: PanelSwitch,
+      });
     }
 
     links.push({
