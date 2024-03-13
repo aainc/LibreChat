@@ -165,12 +165,12 @@ export default function Conversation({ conversation, retainView, toggleNav, isLa
       {activeConvo ? (
         <div className="visible absolute right-1 z-10 flex text-gray-400">
           <RenameButton renaming={renaming} onRename={onRename} renameHandler={renameHandler} />
-          <DeleteButton
+          {/* <DeleteButton
             conversationId={conversationId}
             retainView={retainView}
             renaming={renaming}
             title={title}
-          />
+          /> */}
         </div>
       ) : (
         <div className="absolute bottom-0 right-0 top-0 w-20 rounded-lg bg-gradient-to-l from-gray-50 from-0% to-transparent group-hover:from-gray-50  dark:from-gray-900 dark:group-hover:from-gray-900" />

@@ -43,6 +43,7 @@ export default function SubmitButton({
   const clickHandler = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
+      trackingEvent('submit_message');
       submitMessage();
     },
     [submitMessage],
@@ -53,6 +54,10 @@ export default function SubmitButton({
   const setKey = useCallback(() => {
     setDialogOpen(true);
   }, []);
+
+  const trackingEvent = (action: string) => {
+    gtag('event', action, {});
+  };
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
