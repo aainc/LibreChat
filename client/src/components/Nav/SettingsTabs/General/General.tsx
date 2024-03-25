@@ -194,12 +194,12 @@ function General() {
         </div>
         {/* Clear Chats should be last */}
         <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-700">
-          <ClearChatsButton
+          {/* <ClearChatsButton
             confirmClear={confirmClear}
             onClick={clearConvos}
             showText={true}
             mutation={clearConvosMutation}
-          />
+          /> */}
         </div>
       </div>
     </Tabs.Content>
