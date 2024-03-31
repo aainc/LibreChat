@@ -150,6 +150,8 @@ export const endpointSchema = z.object({
   customOrder: z.number().optional(),
 });
 
+export type TEndpoint = z.infer<typeof endpointSchema>;
+
 export const azureEndpointSchema = z
   .object({
     groups: azureGroupConfigsSchema,
@@ -185,7 +187,7 @@ export const rateLimitSchema = z.object({
 
 export const configSchema = z.object({
   version: z.string(),
-  cache: z.boolean(),
+  cache: z.boolean().optional().default(true),
   interface: z
     .object({
       privacyPolicy: z
