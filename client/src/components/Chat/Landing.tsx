@@ -79,7 +79,9 @@ export default function Landing({ Header }: { Header?: ReactNode }) {
                   {assistantName}
                 </div>
                 <div className="text-token-text-secondary max-w-md text-center text-xl font-normal ">
-                  {assistantDesc ? assistantDesc : localize('com_nav_welcome_message')}
+                  {/* {assistantDesc ? assistantDesc : localize('com_nav_welcome_message')} */}
+                  <a href="https://prompt.chieco.chat" target="_blank" rel='noreferrer'>プロンプトテンプレート集を開く→</a><br />
+          ID:chieco Pass:kawaii でログインしてください。
                 </div>
                 {/* <div className="mt-1 flex items-center gap-1 text-token-text-tertiary">
               <div className="text-sm text-token-text-tertiary">By Daniel Avila</div>
@@ -87,9 +89,9 @@ export default function Landing({ Header }: { Header?: ReactNode }) {
               </div>
             ) : (
               <div className="mb-5 text-2xl font-medium dark:text-white">
-                {endpoint === EModelEndpoint.assistants
-                  ? localize('com_nav_welcome_assistant')
-                  : localize('com_nav_welcome_message')}
+                {/* {localize('com_nav_welcome_message')} */}
+                <a href="https://prompt.chieco.chat" target="_blank" rel='noreferrer'>プロンプトテンプレート集を開く→</a><br />
+          ID:chieco Pass:kawaii でログインしてください。
               </div>
             )}
           </div>

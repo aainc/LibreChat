@@ -30,6 +30,8 @@ services:
       - ./logs:/app/api/logs
   mongodb:
     container_name: chat-mongodb
+    ports:  # Uncomment this to access mongodb from outside docker, not safe in deployment
+      - 27018:27017
     image: mongo
     restart: always
     user: "${UID}:${GID}"

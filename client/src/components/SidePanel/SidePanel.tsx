@@ -61,13 +61,13 @@ const SidePanel = ({
   const Links = useMemo(() => {
     const links: NavLink[] = [];
     if (assistants && assistants.disableBuilder !== true && keyProvided) {
-      links.push({
-        title: 'com_sidepanel_assistant_builder',
-        label: '',
-        icon: Blocks,
-        id: 'assistants',
-        Component: PanelSwitch,
-      });
+      // links.push({
+      //   title: 'com_sidepanel_assistant_builder',
+      //   label: '',
+      //   icon: Blocks,
+      //   id: 'assistants',
+      //   Component: PanelSwitch,
+      // });
     }
 
     links.push({
