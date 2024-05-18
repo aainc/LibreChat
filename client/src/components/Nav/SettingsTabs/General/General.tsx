@@ -166,8 +166,6 @@ function General() {
         <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-600">
           <HideSidePanelSwitch />
         </div>
-        <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-600">
-          <ArchivedChats />
         </div>
         {/* <div className="border-b pb-3 last-of-type:border-b-0 dark:border-gray-600">
         </div> */}
