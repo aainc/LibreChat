@@ -7,6 +7,13 @@ export const userPlugins = () => '/api/user/plugins';
 export const messages = (conversationId: string, messageId?: string) =>
   `/api/messages/${conversationId}${messageId ? `/${messageId}` : ''}`;
 
+const shareRoot = '/api/share';
+export const shareMessages = (shareId: string) => `${shareRoot}/${shareId}`;
+export const getSharedLinks = (pageNumber: string, isPublic: boolean) =>
+  `${shareRoot}?pageNumber=${pageNumber}&isPublic=${isPublic}`;
+export const createSharedLink = shareRoot;
+export const updateSharedLink = shareRoot;
+
 const keysEndpoint = '/api/keys';
 
 export const keys = () => keysEndpoint;
@@ -19,15 +26,25 @@ export const revokeAllUserKeys = () => `${keysEndpoint}?all=true`;
 
 export const abortRequest = (endpoint: string) => `/api/ask/${endpoint}/abort`;
 
-export const conversations = (pageNumber: string) => `/api/convos?pageNumber=${pageNumber}`;
+export const conversationsRoot = '/api/convos';
 
-export const conversationById = (id: string) => `/api/convos/${id}`;
+export const conversations = (pageNumber: string, isArchived?: boolean) =>
+  `${conversationsRoot}?pageNumber=${pageNumber}${isArchived ? '&isArchived=true' : ''}`;
 
-export const genTitle = () => '/api/convos/gen_title';
+export const conversationById = (id: string) => `${conversationsRoot}/${id}`;
 
-export const updateConversation = () => '/api/convos/update';
+export const genTitle = () => `${conversationsRoot}/gen_title`;
 
-export const deleteConversation = () => '/api/convos/clear';
+export const updateConversation = () => `${conversationsRoot}/update`;
+
+export const deleteConversation = () => `${conversationsRoot}/clear`;
+
+export const importConversation = () => `${conversationsRoot}/import`;
+
+export const forkConversation = () => `${conversationsRoot}/fork`;
+
+export const importConversationJobStatus = (jobId: string) =>
+  `${conversationsRoot}/import/jobs/${jobId}`;
 
 export const search = (q: string, pageNumber: string) =>
   `/api/search?q=${q}&pageNumber=${pageNumber}`;
