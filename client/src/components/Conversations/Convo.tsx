@@ -120,6 +120,7 @@ export default function Conversation({ conversation, retainView, toggleNav, isLa
           />
         </div>
       ) : (
+
         <HoverToggle
           isActiveConvo={isActiveConvo}
           isPopoverActive={isPopoverActive}
@@ -142,14 +143,6 @@ export default function Conversation({ conversation, retainView, toggleNav, isLa
               renameHandler={renameHandler}
               appendLabel={true}
               className="mb-[3.5px]"
-            />
-            <DeleteButton
-              conversationId={conversationId}
-              retainView={retainView}
-              renaming={renaming}
-              title={title}
-              appendLabel={true}
-              className="group m-1.5 mt-[3.5px] flex w-full cursor-pointer items-center gap-2 rounded p-2.5 text-sm hover:bg-gray-200 focus-visible:bg-gray-200 focus-visible:outline-0 radix-disabled:pointer-events-none radix-disabled:opacity-50 dark:hover:bg-gray-600 dark:focus-visible:bg-gray-600"
             />
           </DropDownMenu>
           <ArchiveButton

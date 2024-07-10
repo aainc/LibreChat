@@ -169,10 +169,10 @@
     ]
   },
   {
-    "name": "Azure AI Search",
+    "name": "知恵蔵",
     "pluginKey": "azure-ai-search",
-    "description": "Use Azure AI Search to find information",
-    "icon": "https://i.imgur.com/E7crPze.png",
+    "description": "知恵子から知恵蔵を使う為のプラグインです",
+    "icon": "https://i.imgur.com/xkb5sw1.png",
     "authConfig": [
       {
         "authField": "AZURE_AI_SEARCH_SERVICE_ENDPOINT",
