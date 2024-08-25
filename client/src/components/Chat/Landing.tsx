@@ -71,19 +71,57 @@ export default function Landing({ Header }: { Header?: ReactNode }) {
                 <div className="text-center text-2xl font-medium dark:text-white">
                   {assistantName}
                 </div>
-                <div className="text-token-text-secondary max-w-md text-center text-xl font-normal ">
-                  {assistantDesc ? assistantDesc : localize('com_nav_welcome_message')}
+                <div className="md-5 text-2x1 font-medium dark:text-white">
+                  {/* {assistantDesc ? assistantDesc : localize('com_nav_welcome_message')} */}
+                  <a href="https://prompt.chieco.chat" target="_blank" rel='noreferrer'>プロンプトテンプレート集を開く→</a><br />
+          ID:chieco Pass:kawaii でログインしてください。<br />
+                  <p className='mt-5'>
+                    <li>
+                      知恵香：
+                      アップロードしたファイルを読んだりまとめたりが得意<br/>
+                    </li>
+                    <li>
+                      知恵杉：
+                      プログラミングやアップロードされたファイルの解析が得意<br/>
+                    </li>
+                    <li>
+                      知恵見：
+                      知恵香と知恵杉のハイブリッド、便利だがちゃんと指示しないと余計な事をする<br/>
+                    </li>
+                    <li>
+                      知恵蔵：
+                      Slackの蔵や、Google Docsのファイルを元にした回答が得意、Pluginsから呼び出す<br/>
+                    </li>
+                  </p>
                 </div>
                 {/* <div className="mt-1 flex items-center gap-1 text-token-text-tertiary">
               <div className="text-sm text-token-text-tertiary">By Daniel Avila</div>
             </div> */}
               </div>
             ) : (
-              <h2 className="mb-5 max-w-[75vh] px-12 text-center text-lg font-medium dark:text-white md:px-0 md:text-2xl">
-                {isAssistant
-                  ? conversation?.greeting ?? localize('com_nav_welcome_assistant')
-                  : conversation?.greeting ?? localize('com_nav_welcome_message')}
-              </h2>
+              <div className="mb-5 text-2xl font-medium dark:text-white">
+                {/* {localize('com_nav_welcome_message')} */}
+                <a href="https://prompt.chieco.chat" target="_blank" rel='noreferrer'>プロンプトテンプレート集を開く→</a><br />
+          ID:chieco Pass:kawaii でログインしてください。<br />
+                <p className='mt-5'>
+                  <li>
+                    知恵香：
+                    アップロードしたファイルを読んだりまとめたりが得意<br/>
+                  </li>
+                  <li>
+                    知恵杉：
+                    プログラミングやアップロードされたファイルの解析が得意<br/>
+                  </li>
+                  <li>
+                    知恵見：
+                    知恵香と知恵杉のハイブリッド、便利だがちゃんと指示しないと余計な事をする<br/>
+                  </li>
+                  <li>
+                    知恵蔵：
+                    Slackの蔵や、Google Docsのファイルを元にした回答が得意、Pluginsから呼び出す<br/>
+                  </li>
+                </p>
+              </div>
             )}
           </div>
         </div>
