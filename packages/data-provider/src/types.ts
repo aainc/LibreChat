@@ -7,6 +7,7 @@ import type {
   TSharedLink,
   TConversation,
   EModelEndpoint,
+  TConversationTag,
 } from './schemas';
 import type { TSpecsConfig } from './models';
 export type TOpenAIMessage = OpenAI.Chat.ChatCompletionMessageParam;
@@ -57,10 +58,12 @@ export type TSubmission = {
   messages: TMessage[];
   isRegenerate?: boolean;
   conversationId?: string;
-  initialResponse: TMessage;
+  initialResponse?: TMessage;
   conversation: Partial<TConversation>;
   endpointOption: TEndpointOption;
 };
+
+export type EventSubmission = Omit<TSubmission, 'initialResponse'> & { initialResponse: TMessage };
 
 export type TPluginAction = {
   pluginKey: string;
@@ -170,6 +173,24 @@ export type TSharedLinkResponse = TSharedLink;
 export type TSharedLinksResponse = TSharedLink[];
 export type TDeleteSharedLinkResponse = TSharedLink;
 
+// type for getting conversation tags
+export type TConversationTagsResponse = TConversationTag[];
+// type for creating conversation tag
+export type TConversationTagRequest = Partial<
+  Omit<TConversationTag, 'createdAt' | 'updatedAt' | 'count' | 'user'>
+> & {
+  conversationId?: string;
+  addToConversation?: boolean;
+};
+
+export type TConversationTagResponse = TConversationTag;
+
+// type for tagging conversation
+export type TTagConversationRequest = {
+  tags: string[];
+};
+export type TTagConversationResponse = string[];
+
 export type TForkConvoRequest = {
   messageId: string;
   conversationId: string;
@@ -235,6 +256,7 @@ export type TRegisterUser = {
   username: string;
   password: string;
   confirm_password?: string;
+  token?: string;
 };
 
 export type TLoginUser = {
@@ -294,7 +316,13 @@ export type TStartupConfig = {
   openidLoginEnabled: boolean;
   openidLabel: string;
   openidImageUrl: string;
-  ldapLoginEnabled: boolean;
+  /** LDAP Auth Configuration */
+  ldap?: {
+    /** LDAP enabled */
+    enabled: boolean;
+    /** Whether LDAP uses username vs. email */
+    username?: boolean;
+  };
   serverDomain: string;
   emailLoginEnabled: boolean;
   registrationEnabled: boolean;
@@ -463,3 +491,5 @@ export type TGetRandomPromptsRequest = {
   limit: number;
   skip: number;
 };
+
+export type TCustomConfigSpeechResponse = { [key: string]: string };
