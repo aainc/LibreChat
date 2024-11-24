@@ -13,7 +13,7 @@ import { cn } from '~/utils/';
 type SelectionProps = {
   selectHandler?: () => void;
   selectClasses?: string;
-  selectText?: string;
+  selectText?: string | ReactNode;
 };
 
 type DialogTemplateProps = {
@@ -59,10 +59,7 @@ const OGDialogTemplate = forwardRef((props: DialogTemplateProps, ref: Ref<HTMLDi
       overlayClassName={overlayClassName}
       showCloseButton={showCloseButton}
       ref={ref}
-      className={cn(
-        'bg-white dark:border-gray-700 dark:bg-gray-850 dark:text-gray-300',
-        className ?? '',
-      )}
+      className={cn('border-none bg-background text-foreground', className ?? '')}
       onClick={(e) => e.stopPropagation()}
     >
       <OGDialogHeader className={cn(headerClassName ?? '')}>
@@ -84,7 +81,7 @@ const OGDialogTemplate = forwardRef((props: DialogTemplateProps, ref: Ref<HTMLDi
               onClick={selectHandler}
               className={`${
                 selectClasses ?? defaultSelect
-              } inline-flex h-10 items-center justify-center rounded-lg border-none px-4 py-2 text-sm`}
+              } flex h-10 items-center justify-center rounded-lg border-none px-4 py-2 text-sm`}
             >
               {selectText}
             </OGDialogClose>

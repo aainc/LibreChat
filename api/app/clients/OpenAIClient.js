@@ -68,6 +68,8 @@ class OpenAIClient extends BaseClient {
 
     /** @type {OpenAIUsageMetadata | undefined} */
     this.usage;
+    /** @type {boolean|undefined} */
+    this.isO1Model;
   }
 
   // TODO: PluginsClient calls this 3x, unneeded
@@ -104,6 +106,8 @@ class OpenAIClient extends BaseClient {
     } else {
       this.checkVisionRequest(this.options.attachments);
     }
+
+    this.isO1Model = /\bo1\b/i.test(this.modelOptions.model);
 
     const { OPENROUTER_API_KEY, OPENAI_FORCE_PROMPT } = process.env ?? {};
     if (OPENROUTER_API_KEY && !this.azure) {
@@ -199,8 +203,8 @@ class OpenAIClient extends BaseClient {
         model: this.modelOptions.model,
         endpoint: this.options.endpoint,
         endpointType: this.options.endpointType,
-        chatGptLabel: this.options.chatGptLabel,
         modelDisplayLabel: this.options.modelDisplayLabel,
+        chatGptLabel: this.options.chatGptLabel || this.options.modelLabel,
       });
 
     this.userLabel = this.options.userLabel || 'User';
@@ -545,12 +549,10 @@ class OpenAIClient extends BaseClient {
       promptPrefix = this.augmentedPrompt + promptPrefix;
     }
 
-    const isO1Model = /\bo1\b/i.test(this.modelOptions.model);
-    if (promptPrefix && !isO1Model) {
+    if (promptPrefix && this.isO1Model !== true) {
       promptPrefix = `Instructions:\n${promptPrefix.trim()}`;
       instructions = {
         role: 'system',
-        name: 'instructions',
         content: promptPrefix,
       };
 
@@ -575,7 +577,7 @@ class OpenAIClient extends BaseClient {
     };
 
     /** EXPERIMENTAL */
-    if (promptPrefix && isO1Model) {
+    if (promptPrefix && this.isO1Model === true) {
       const lastUserMessageIndex = payload.findLastIndex((message) => message.role === 'user');
       if (lastUserMessageIndex !== -1) {
         payload[
@@ -644,6 +646,12 @@ class OpenAIClient extends BaseClient {
 
       if (completionResult && typeof completionResult === 'string') {
         reply = completionResult;
+      } else if (
+        completionResult &&
+        typeof completionResult === 'object' &&
+        Array.isArray(completionResult.choices)
+      ) {
+        reply = completionResult.choices[0]?.text?.replace(this.endToken, '');
       }
     } else if (typeof opts.onProgress === 'function' || this.options.useChatCompletion) {
       reply = await this.chatCompletion({
@@ -833,27 +841,27 @@ class OpenAIClient extends BaseClient {
     }
 
     const titleChatCompletion = async () => {
-      modelOptions.model = model;
+      try {
+        modelOptions.model = model;
 
-      if (this.azure) {
-        modelOptions.model = process.env.AZURE_OPENAI_DEFAULT_MODEL ?? modelOptions.model;
-        this.azureEndpoint = genAzureChatCompletion(this.azure, modelOptions.model, this);
-      }
+        if (this.azure) {
+          modelOptions.model = process.env.AZURE_OPENAI_DEFAULT_MODEL ?? modelOptions.model;
+          this.azureEndpoint = genAzureChatCompletion(this.azure, modelOptions.model, this);
+        }
 
-      const instructionsPayload = [
-        {
-          role: this.options.titleMessageRole ?? (this.isOllama ? 'user' : 'system'),
-          content: `Please generate ${titleInstruction}
+        const instructionsPayload = [
+          {
+            role: this.options.titleMessageRole ?? (this.isOllama ? 'user' : 'system'),
+            content: `Please generate ${titleInstruction}
 
 ${convo}
 
 ||>Title:`,
-        },
-      ];
+          },
+        ];
 
-      const promptTokens = this.getTokenCountForMessage(instructionsPayload[0]);
+        const promptTokens = this.getTokenCountForMessage(instructionsPayload[0]);
 
-      try {
         let useChatCompletion = true;
 
         if (this.options.reverseProxyUrl === CohereConstants.API_URL) {
@@ -917,7 +925,9 @@ ${convo}
       this.usage &&
       typeof this.usage === 'object' &&
       'completion_tokens_details' in this.usage &&
-      typeof this.usage.completion_tokens_details === 'object'
+      this.usage.completion_tokens_details &&
+      typeof this.usage.completion_tokens_details === 'object' &&
+      'reasoning_tokens' in this.usage.completion_tokens_details
     ) {
       const outputTokens = Math.abs(
         this.usage.completion_tokens_details.reasoning_tokens - this.usage[this.outputTokensKey],
@@ -1219,6 +1229,11 @@ ${convo}
         opts.defaultHeaders = { ...opts.defaultHeaders, 'api-key': this.apiKey };
       }
 
+      if (this.isO1Model === true && modelOptions.max_tokens != null) {
+        modelOptions.max_completion_tokens = modelOptions.max_tokens;
+        delete modelOptions.max_tokens;
+      }
+
       if (process.env.OPENAI_ORGANIZATION) {
         opts.organization = process.env.OPENAI_ORGANIZATION;
       }
@@ -1292,10 +1307,6 @@ ${convo}
       let streamPromise;
       /** @type {(value: void | PromiseLike<void>) => void} */
       let streamResolve;
-
-      if (modelOptions.stream && /\bo1\b/i.test(modelOptions.model)) {
-        delete modelOptions.stream;
-      }
 
       if (modelOptions.stream) {
         streamPromise = new Promise((resolve) => {

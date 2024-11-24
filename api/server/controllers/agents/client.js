@@ -10,9 +10,12 @@
 const { Callback, createMetadataAggregator } = require('@librechat/agents');
 const {
   Constants,
+  VisionModes,
+  openAISchema,
   EModelEndpoint,
+  KnownEndpoints,
+  anthropicSchema,
   bedrockOutputParser,
-  providerEndpointMap,
   removeNullishValues,
 } = require('librechat-data-provider');
 const {
@@ -23,6 +26,7 @@ const {
 const {
   formatMessage,
   formatAgentMessages,
+  formatContentStrings,
   createContextHandlers,
 } = require('~/app/clients/prompts');
 const { encodeAndFormat } = require('~/server/services/Files/images/encode');
@@ -35,13 +39,14 @@ const { logger } = require('~/config');
 
 /** @typedef {import('@librechat/agents').MessageContentComplex} MessageContentComplex */
 
-// const providerSchemas = {
-// [EModelEndpoint.bedrock]: true,
-// };
-
 const providerParsers = {
+  [EModelEndpoint.openAI]: openAISchema,
+  [EModelEndpoint.azureOpenAI]: openAISchema,
+  [EModelEndpoint.anthropic]: anthropicSchema,
   [EModelEndpoint.bedrock]: bedrockOutputParser,
 };
+
+const legacyContentEndpoints = new Set([KnownEndpoints.groq, KnownEndpoints.deepseek]);
 
 class AgentClient extends BaseClient {
   constructor(options = {}) {
@@ -57,10 +62,11 @@ class AgentClient extends BaseClient {
     this.run;
 
     const {
-      maxContextTokens,
-      modelOptions = {},
       contentParts,
       collectedUsage,
+      artifactPromises,
+      maxContextTokens,
+      modelOptions = {},
       ...clientOptions
     } = options;
 
@@ -70,6 +76,9 @@ class AgentClient extends BaseClient {
     this.contentParts = contentParts;
     /** @type {Array<UsageMetadata>} */
     this.collectedUsage = collectedUsage;
+    /** @type {ArtifactPromises} */
+    this.artifactPromises = artifactPromises;
+    /** @type {AgentClientOptions} */
     this.options = Object.assign({ endpoint: options.endpoint }, clientOptions);
   }
 
@@ -180,10 +189,10 @@ class AgentClient extends BaseClient {
     );
   }
 
-  getBuildMessagesOptions(opts) {
+  getBuildMessagesOptions() {
     return {
-      instructions: opts.instructions,
-      additional_instructions: opts.additional_instructions,
+      instructions: this.options.agent.instructions,
+      additional_instructions: this.options.agent.additional_instructions,
     };
   }
 
@@ -192,6 +201,7 @@ class AgentClient extends BaseClient {
       this.options.req,
       attachments,
       this.options.agent.provider,
+      VisionModes.agents,
     );
     message.image_urls = image_urls.length ? image_urls : undefined;
     return files;
@@ -210,8 +220,6 @@ class AgentClient extends BaseClient {
     });
 
     let payload;
-    /** @type {{ role: string; name: string; content: string } | undefined} */
-    let systemMessage;
     /** @type {number | undefined} */
     let promptTokens;
 
@@ -259,21 +267,21 @@ class AgentClient extends BaseClient {
       }
 
       /* If message has files, calculate image token cost */
-      // if (this.message_file_map && this.message_file_map[message.messageId]) {
-      //   const attachments = this.message_file_map[message.messageId];
-      //   for (const file of attachments) {
-      //     if (file.embedded) {
-      //       this.contextHandlers?.processFile(file);
-      //       continue;
-      //     }
+      if (this.message_file_map && this.message_file_map[message.messageId]) {
+        const attachments = this.message_file_map[message.messageId];
+        for (const file of attachments) {
+          if (file.embedded) {
+            this.contextHandlers?.processFile(file);
+            continue;
+          }
 
-      //     orderedMessages[i].tokenCount += this.calculateImageTokenCost({
-      //       width: file.width,
-      //       height: file.height,
-      //       detail: this.options.imageDetail ?? ImageDetail.auto,
-      //     });
-      //   }
-      // }
+          // orderedMessages[i].tokenCount += this.calculateImageTokenCost({
+          //   width: file.width,
+          //   height: file.height,
+          //   detail: this.options.imageDetail ?? ImageDetail.auto,
+          // });
+        }
+      }
 
       return formattedMessage;
     });
@@ -284,20 +292,7 @@ class AgentClient extends BaseClient {
     }
 
     if (systemContent) {
-      systemContent = `${systemContent.trim()}`;
-      systemMessage = {
-        role: 'system',
-        name: 'instructions',
-        content: systemContent,
-      };
-
-      if (this.contextStrategy) {
-        const instructionTokens = this.getTokenCountForMessage(systemMessage);
-        if (instructionTokens >= 0) {
-          const firstMessageTokens = orderedMessages[0].tokenCount ?? 0;
-          orderedMessages[0].tokenCount = firstMessageTokens + instructionTokens;
-        }
-      }
+      this.options.agent.instructions = systemContent;
     }
 
     if (this.contextStrategy) {
@@ -466,7 +461,6 @@ class AgentClient extends BaseClient {
         req: this.options.req,
         agent: this.options.agent,
         tools: this.options.tools,
-        toolMap: this.options.toolMap,
         runId: this.responseMessageId,
         modelOptions: this.modelOptions,
         customHandlers: this.options.eventHandlers,
@@ -474,10 +468,8 @@ class AgentClient extends BaseClient {
 
       const config = {
         configurable: {
-          provider: providerEndpointMap[this.options.agent.provider],
           thread_id: this.conversationId,
         },
-        run_id: this.responseMessageId,
         signal: abortController.signal,
         streamMode: 'values',
         version: 'v2',
@@ -490,6 +482,9 @@ class AgentClient extends BaseClient {
       this.run = run;
 
       const messages = formatAgentMessages(payload);
+      if (legacyContentEndpoints.has(this.options.agent.endpoint)) {
+        formatContentStrings(messages);
+      }
       await run.processStream({ messages }, config, {
         [Callback.TOOL_ERROR]: (graph, error, toolId) => {
           logger.error(
