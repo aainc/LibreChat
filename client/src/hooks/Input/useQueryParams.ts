@@ -14,10 +14,12 @@ export default function useQueryParams({
   const maxAttempts = 50; // 5 seconds maximum (50 * 100ms)
 
   useEffect(() => {
-    const decodedPrompt = searchParams.get('prompt') ?? '';
-    if (!decodedPrompt) {
+    const promptParam = searchParams.get('prompt');
+    if (!promptParam) {
       return;
     }
+
+    const decodedPrompt = decodeURIComponent(promptParam);
 
     const intervalId = setInterval(() => {
       // If already processed or max attempts reached, clear interval and stop
