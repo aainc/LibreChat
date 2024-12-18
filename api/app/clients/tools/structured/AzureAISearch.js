@@ -87,6 +87,7 @@ class AzureAISearch extends Tool {
       };
       if (this.select) {
         searchOption.select = this.select.split(',');
+        searchOption.orderby = 'updateDate desc';
       }
       const searchResults = await this.client.search(query, searchOption);
       const resultDocuments = [];
