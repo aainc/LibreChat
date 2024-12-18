@@ -15,6 +15,7 @@ const allowedCharactersRegex = new RegExp(
     ']+$', // End of string
   'u', // Use Unicode mode
 );
+
 const injectionPatternsRegex = /('|--|\$ne|\$gt|\$lt|\$or|\{|\}|\*|;|<|>|\/|=)/i;
 
 const usernameSchema = z

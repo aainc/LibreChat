@@ -10,8 +10,7 @@
       "env": {
         "NODE_ENV": "production"
       },
-      "console": "integratedTerminal",
-      "envFile": "${workspaceFolder}/.env"
+      "console": "integratedTerminal"
     }
   ]
 }
