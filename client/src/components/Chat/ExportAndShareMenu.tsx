@@ -56,7 +56,7 @@ export default function ExportAndShareMenu({
     {
       label: localize('com_ui_share'),
       onClick: shareHandler,
-      icon: <Share2 className="icon-md mr-2 text-text-secondary" />,
+      icon: <Share2 className="icon-md mr-2 dark:text-gray-300" />,
       show: isSharedButtonEnabled,
       /** NOTE: THE FOLLOWING PROPS ARE REQUIRED FOR MENU ITEMS THAT OPEN DIALOGS */
       hideOnClick: false,

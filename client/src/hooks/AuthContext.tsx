@@ -49,7 +49,7 @@ const AuthContextProvider = ({
       //@ts-ignore - ok for token to be undefined initially
       setTokenHeader(token);
       setIsAuthenticated(isAuthenticated);
-      if (redirect != null && redirect) {
+      if (redirect) {
         navigate(redirect, { replace: true });
       }
     },
@@ -79,7 +79,7 @@ const AuthContextProvider = ({
   });
 
   const logout = useCallback(() => logoutUser.mutate(undefined), [logoutUser]);
-  const userQuery = useGetUserQuery({ enabled: !!(token ?? '') });
+  const userQuery = useGetUserQuery({ enabled: !!token });
   const refreshToken = useRefreshTokenMutation();
 
   const login = (data: TLoginUser) => {
@@ -98,18 +98,18 @@ const AuthContextProvider = ({
   };
 
   const silentRefresh = useCallback(() => {
-    if (authConfig?.test === true) {
+    if (authConfig?.test) {
       console.log('Test mode. Skipping silent refresh.');
       return;
     }
     refreshToken.mutate(undefined, {
-      onSuccess: (data: TLoginResponse | undefined) => {
-        const { user, token = '' } = data ?? {};
+      onSuccess: (data: TLoginResponse) => {
+        const { user, token } = data;
         if (token) {
           setUserContext({ token, isAuthenticated: true, user });
         } else {
           console.log('Token is not present. User is not authenticated.');
-          if (authConfig?.test === true) {
+          if (authConfig?.test) {
             return;
           }
           navigate('/login');
@@ -117,7 +117,7 @@ const AuthContextProvider = ({
       },
       onError: (error) => {
         console.log('refreshToken mutation error:', error);
-        if (authConfig?.test === true) {
+        if (authConfig?.test) {
           return;
         }
         navigate('/login');
@@ -132,10 +132,10 @@ const AuthContextProvider = ({
       doSetError((userQuery.error as Error).message);
       navigate('/login', { replace: true });
     }
-    if (error != null && error && isAuthenticated) {
+    if (error && isAuthenticated) {
       doSetError(undefined);
     }
-    if (token == null || !token || !isAuthenticated) {
+    if (!token || !isAuthenticated) {
       silentRefresh();
     }
   }, [
@@ -145,9 +145,7 @@ const AuthContextProvider = ({
     userQuery.isError,
     userQuery.error,
     error,
-    setUser,
     navigate,
-    silentRefresh,
     setUserContext,
   ]);
 

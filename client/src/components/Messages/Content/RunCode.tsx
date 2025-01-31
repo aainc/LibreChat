@@ -21,12 +21,7 @@ const RunCode: React.FC<CodeBarProps> = React.memo(({ lang, codeRef, blockIndex 
 
   const { messageId, conversationId, partIndex } = useMessageContext();
   const normalizedLang = useMemo(() => normalizeLanguage(lang), [lang]);
-  const { data } = useVerifyAgentToolAuth(
-    { toolId: Tools.execute_code },
-    {
-      retry: 1,
-    },
-  );
+  const { data } = useVerifyAgentToolAuth({ toolId: Tools.execute_code });
   const authType = useMemo(() => data?.message ?? false, [data?.message]);
   const isAuthenticated = useMemo(() => data?.authenticated ?? false, [data?.authenticated]);
   const { methods, onSubmit, isDialogOpen, setIsDialogOpen, handleRevokeApiKey } =

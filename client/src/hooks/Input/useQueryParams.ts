@@ -166,6 +166,8 @@ export default function useQueryParams({
       return { decodedPrompt, validSettings };
     };
 
+    const decodedPrompt = decodeURIComponent(promptParam);
+
     const intervalId = setInterval(() => {
       if (processedRef.current || attemptsRef.current >= maxAttempts) {
         clearInterval(intervalId);
