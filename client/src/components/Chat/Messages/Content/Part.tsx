@@ -10,7 +10,6 @@ import type { TMessageContentParts, TAttachment } from 'librechat-data-provider'
 import { ErrorMessage } from './MessageContent';
 import ExecuteCode from './Parts/ExecuteCode';
 import RetrievalCall from './RetrievalCall';
-import Reasoning from './Parts/Reasoning';
 import CodeAnalyze from './CodeAnalyze';
 import Container from './Container';
 import ToolCall from './ToolCall';
@@ -47,12 +46,6 @@ const Part = memo(({ part, isSubmitting, attachments, showCursor, isCreatedByUse
         <Text text={text} isCreatedByUser={isCreatedByUser} showCursor={showCursor} />
       </Container>
     );
-  } else if (part.type === ContentTypes.THINK) {
-    const reasoning = typeof part.think === 'string' ? part.think : part.think.value;
-    if (typeof reasoning !== 'string') {
-      return null;
-    }
-    return <Reasoning reasoning={reasoning} />;
   } else if (part.type === ContentTypes.TOOL_CALL) {
     const toolCall = part[ContentTypes.TOOL_CALL];
 

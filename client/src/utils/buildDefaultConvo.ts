@@ -5,7 +5,7 @@ import {
   isAgentsEndpoint,
 } from 'librechat-data-provider';
 import type { TConversation } from 'librechat-data-provider';
-import { getLocalStorageItems } from './localStorage';
+import getLocalStorageItems from './getLocalStorageItems';
 
 const buildDefaultConvo = ({
   conversation,

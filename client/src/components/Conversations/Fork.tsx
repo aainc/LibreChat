@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useRecoilState } from 'recoil';
 import { GitFork, InfoIcon } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
-import { ForkOptions } from 'librechat-data-provider';
+import { ForkOptions, TMessage } from 'librechat-data-provider';
 import { GitCommit, GitBranchPlus, ListTree } from 'lucide-react';
 import {
   Checkbox,
@@ -12,9 +12,9 @@ import {
   HoverCardContent,
 } from '~/components/ui';
 import OptionHover from '~/components/SidePanel/Parameters/OptionHover';
+import { useToastContext, useChatContext } from '~/Providers';
 import { useLocalize, useNavigateToConvo } from '~/hooks';
 import { useForkConvoMutation } from '~/data-provider';
-import { useToastContext } from '~/Providers';
 import { ESide } from '~/common';
 import { cn } from '~/utils';
 import store from '~/store';
@@ -26,9 +26,9 @@ interface PopoverButtonProps {
   setActiveSetting: React.Dispatch<React.SetStateAction<string>>;
   sideOffset?: number;
   timeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
-  hoverInfo?: React.ReactNode | string;
-  hoverTitle?: React.ReactNode | string;
-  hoverDescription?: React.ReactNode | string;
+  hoverInfo?: React.ReactNode;
+  hoverTitle?: React.ReactNode;
+  hoverDescription?: React.ReactNode;
 }
 
 const optionLabels = {
@@ -73,9 +73,7 @@ const PopoverButton: React.FC<PopoverButtonProps> = ({
       >
         {children}
       </Popover.Close>
-      {((hoverInfo != null && hoverInfo !== '') ||
-        (hoverTitle != null && hoverTitle !== '') ||
-        (hoverDescription != null && hoverDescription !== '')) && (
+      {(hoverInfo || hoverTitle || hoverDescription) && (
         <HoverCardPortal>
           <HoverCardContent
             side="right"
@@ -84,11 +82,9 @@ const PopoverButton: React.FC<PopoverButtonProps> = ({
           >
             <div className="space-y-2">
               <p className="flex flex-col gap-2 text-sm text-gray-600 dark:text-gray-300">
-                {hoverInfo != null && hoverInfo !== '' && hoverInfo}
-                {hoverTitle != null && hoverTitle !== '' && (
-                  <span className="flex flex-wrap gap-1 font-bold">{hoverTitle}</span>
-                )}
-                {hoverDescription != null && hoverDescription !== '' && hoverDescription}
+                {hoverInfo && hoverInfo}
+                {hoverTitle && <span className="flex flex-wrap gap-1 font-bold">{hoverTitle}</span>}
+                {hoverDescription && hoverDescription}
               </p>
             </div>
           </HoverCardContent>
@@ -99,22 +95,23 @@ const PopoverButton: React.FC<PopoverButtonProps> = ({
 };
 
 export default function Fork({
-  isLast = false,
+  isLast,
   messageId,
-  conversationId: _convoId,
-  forkingSupported = false,
-  latestMessageId,
+  conversationId,
+  forkingSupported,
+  latestMessage,
 }: {
   isLast?: boolean;
   messageId: string;
   conversationId: string | null;
   forkingSupported?: boolean;
-  latestMessageId?: string;
+  latestMessage: TMessage | null;
 }) {
   const localize = useLocalize();
+  const { index } = useChatContext();
   const { showToast } = useToastContext();
   const [remember, setRemember] = useState(false);
-  const { navigateToConvo } = useNavigateToConvo();
+  const { navigateToConvo } = useNavigateToConvo(index);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [forkSetting, setForkSetting] = useRecoilState(store.forkSetting);
   const [activeSetting, setActiveSetting] = useState(optionLabels.default);
@@ -122,11 +119,13 @@ export default function Fork({
   const [rememberGlobal, setRememberGlobal] = useRecoilState(store.rememberDefaultFork);
   const forkConvo = useForkConvoMutation({
     onSuccess: (data) => {
-      navigateToConvo(data.conversation);
-      showToast({
-        message: localize('com_ui_fork_success'),
-        status: 'success',
-      });
+      if (data) {
+        navigateToConvo(data.conversation);
+        showToast({
+          message: localize('com_ui_fork_success'),
+          status: 'success',
+        });
+      }
     },
     onMutate: () => {
       showToast({
@@ -142,7 +141,6 @@ export default function Fork({
     },
   });
 
-  const conversationId = _convoId ?? '';
   if (!forkingSupported || !conversationId || !messageId) {
     return null;
   }
@@ -158,7 +156,7 @@ export default function Fork({
       conversationId,
       option,
       splitAtTarget,
-      latestMessageId,
+      latestMessageId: latestMessage?.messageId,
     });
   };
 
@@ -179,7 +177,7 @@ export default function Fork({
                 splitAtTarget,
                 conversationId,
                 option: forkSetting,
-                latestMessageId,
+                latestMessageId: latestMessage?.messageId,
               });
             }
           }}

@@ -11,7 +11,6 @@ const buildOptions = (endpoint, parsedBody) => {
     greeting,
     spec,
     artifacts,
-    maxContextTokens,
     ...modelOptions
   } = parsedBody;
   const endpointOption = removeNullishValues({
@@ -23,7 +22,6 @@ const buildOptions = (endpoint, parsedBody) => {
     iconURL,
     greeting,
     spec,
-    maxContextTokens,
     modelOptions,
   });
 

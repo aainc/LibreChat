@@ -27,13 +27,12 @@ import {
 } from '~/components';
 import { useConversationsInfiniteQuery, useArchiveConvoMutation } from '~/data-provider';
 import { DeleteConversationDialog } from '~/components/Conversations/ConvoOptions';
-import { useAuthContext, useLocalize, useMediaQuery } from '~/hooks';
+import { useAuthContext, useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
 export default function ArchivedChatsTable() {
   const localize = useLocalize();
   const { isAuthenticated } = useAuthContext();
-  const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const [isOpened, setIsOpened] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,15 +133,11 @@ export default function ArchivedChatsTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className={cn('p-4', isSmallScreen ? 'w-[70%]' : 'w-[50%]')}>
-                  {localize('com_nav_archive_name')}
+                <TableHead className="w-[50%] p-4">{localize('com_nav_archive_name')}</TableHead>
+                <TableHead className="w-[35%] p-1">
+                  {localize('com_nav_archive_created_at')}
                 </TableHead>
-                {!isSmallScreen && (
-                  <TableHead className="w-[35%] p-1">
-                    {localize('com_nav_archive_created_at')}
-                  </TableHead>
-                )}
-                <TableHead className={cn('p-1 text-right', isSmallScreen ? 'w-[30%]' : 'w-[15%]')}>
+                <TableHead className="w-[15%] p-1 text-right">
                   {localize('com_assistants_actions')}
                 </TableHead>
               </TableRow>
@@ -150,10 +145,10 @@ export default function ArchivedChatsTable() {
             <TableBody>
               {conversations.map((conversation: TConversation) => (
                 <TableRow key={conversation.conversationId} className="hover:bg-transparent">
-                  <TableCell className="py-3 text-text-primary">
+                  <TableCell className="flex items-center py-3 text-text-primary">
                     <button
                       type="button"
-                      className="flex max-w-full"
+                      className="flex"
                       aria-label="Open conversation in a new tab"
                       onClick={() => {
                         const conversationId = conversation.conversationId ?? '';
@@ -163,29 +158,22 @@ export default function ArchivedChatsTable() {
                         handleChatClick(conversationId);
                       }}
                     >
-                      <MessageCircle className="mr-1 h-5 min-w-[20px]" />
-                      <u className="truncate">{conversation.title}</u>
+                      <MessageCircle className="mr-1 h-5 w-5" />
+                      <u>{conversation.title}</u>
                     </button>
                   </TableCell>
-                  {!isSmallScreen && (
-                    <TableCell className="p-1">
-                      <div className="flex justify-between">
-                        <div className="flex justify-start text-text-secondary">
-                          {new Date(conversation.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </div>
+                  <TableCell className="p-1">
+                    <div className="flex justify-between">
+                      <div className="flex justify-start text-text-secondary">
+                        {new Date(conversation.createdAt).toLocaleDateString('en-US', {
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
                       </div>
-                    </TableCell>
-                  )}
-                  <TableCell
-                    className={cn(
-                      'flex items-center gap-1 p-1',
-                      isSmallScreen ? 'justify-end' : 'justify-end gap-2',
-                    )}
-                  >
+                    </div>
+                  </TableCell>
+                  <TableCell className="flex items-center justify-end gap-2 p-1">
                     <TooltipAnchor
                       description={localize('com_ui_unarchive')}
                       render={
@@ -194,7 +182,7 @@ export default function ArchivedChatsTable() {
                           aria-label="Unarchive conversation"
                           variant="ghost"
                           size="icon"
-                          className={cn('size-8', isSmallScreen && 'size-7')}
+                          className="size-8"
                           onClick={() => {
                             const conversationId = conversation.conversationId ?? '';
                             if (!conversationId) {
@@ -203,7 +191,7 @@ export default function ArchivedChatsTable() {
                             handleUnarchive(conversationId);
                           }}
                         >
-                          <ArchiveRestore className={cn('size-4', isSmallScreen && 'size-3.5')} />
+                          <ArchiveRestore className="size-4" />
                         </Button>
                       }
                     />
@@ -218,9 +206,9 @@ export default function ArchivedChatsTable() {
                               aria-label="Delete archived conversation"
                               variant="ghost"
                               size="icon"
-                              className={cn('size-8', isSmallScreen && 'size-7')}
+                              className="size-8"
                             >
-                              <TrashIcon className={cn('size-4', isSmallScreen && 'size-3.5')} />
+                              <TrashIcon className="size-4" />
                             </Button>
                           }
                         />
@@ -239,7 +227,7 @@ export default function ArchivedChatsTable() {
 
           <div className="flex items-center justify-end gap-6 px-2 py-4">
             <div className="text-sm font-bold text-text-primary">
-              {localize('com_ui_page')} {currentPage} {localize('com_ui_of')} {totalPages}
+              Page {currentPage} of {totalPages}
             </div>
             <div className="flex space-x-2">
               {/* <Button

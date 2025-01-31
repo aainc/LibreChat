@@ -1,8 +1,7 @@
-import { render, getByTestId } from 'test/layout-test-utils';
+import { render } from 'test/layout-test-utils';
 import userEvent from '@testing-library/user-event';
 import * as mockDataProvider from 'librechat-data-provider/react-query';
 import type { TStartupConfig } from 'librechat-data-provider';
-import * as authDataProvider from '~/data-provider/Auth/mutations';
 import Login from '../LoginForm';
 
 jest.mock('librechat-data-provider/react-query');
@@ -67,7 +66,7 @@ const setup = ({
   },
 } = {}) => {
   const mockUseLoginUser = jest
-    .spyOn(authDataProvider, 'useLoginUserMutation')
+    .spyOn(mockDataProvider, 'useLoginUserMutation')
     //@ts-ignore - we don't need all parameters of the QueryObserverSuccessResult
     .mockReturnValue(useLoginUserReturnValue);
   const mockUseGetUserQuery = jest
@@ -113,7 +112,7 @@ test('submits login form', async () => {
   );
   const emailInput = getByLabelText(/email/i);
   const passwordInput = getByLabelText(/password/i);
-  const submitButton = getByTestId(document.body, 'login-button');
+  const submitButton = getByRole('button', { name: /Sign in/i });
 
   await userEvent.type(emailInput, 'test@example.com');
   await userEvent.type(passwordInput, 'password');
@@ -128,7 +127,7 @@ test('displays validation error messages', async () => {
   );
   const emailInput = getByLabelText(/email/i);
   const passwordInput = getByLabelText(/password/i);
-  const submitButton = getByTestId(document.body, 'login-button');
+  const submitButton = getByRole('button', { name: /Sign in/i });
 
   await userEvent.type(emailInput, 'test');
   await userEvent.type(passwordInput, 'pass');

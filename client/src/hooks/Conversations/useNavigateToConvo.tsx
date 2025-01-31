@@ -12,29 +12,20 @@ const useNavigateToConvo = (index = 0) => {
   const clearAllConversations = store.useClearConvoState();
   const clearAllLatestMessages = store.useClearLatestMessages(`useNavigateToConvo ${index}`);
   const setSubmission = useSetRecoilState(store.submissionByIndex(index));
-  const { hasSetConversation, setConversation } = store.useCreateConversationAtom(index);
+  const { setConversation } = store.useCreateConversationAtom(index);
 
-  const navigateToConvo = (
-    conversation?: TConversation | null,
-    _resetLatestMessage = true,
-    invalidateMessages = false,
-  ) => {
+  const navigateToConvo = (conversation: TConversation, _resetLatestMessage = true) => {
     if (!conversation) {
       console.log('Conversation not provided');
       return;
     }
-    hasSetConversation.current = true;
     setSubmission(null);
     if (_resetLatestMessage) {
       clearAllLatestMessages();
     }
-    if (invalidateMessages && conversation.conversationId != null && conversation.conversationId) {
-      queryClient.setQueryData([QueryKeys.messages, Constants.NEW_CONVO], []);
-      queryClient.invalidateQueries([QueryKeys.messages, conversation.conversationId]);
-    }
 
     let convo = { ...conversation };
-    if (!convo.endpoint) {
+    if (!convo?.endpoint) {
       /* undefined endpoint edge case */
       const modelsConfig = queryClient.getQueryData<TModelsConfig>([QueryKeys.models]);
       const endpointsConfig = queryClient.getQueryData<TEndpointsConfig>([QueryKeys.endpoints]);
@@ -62,17 +53,9 @@ const useNavigateToConvo = (index = 0) => {
     navigate(`/c/${convo.conversationId ?? Constants.NEW_CONVO}`);
   };
 
-  const navigateWithLastTools = (
-    conversation?: TConversation | null,
-    _resetLatestMessage?: boolean,
-    invalidateMessages?: boolean,
-  ) => {
-    if (!conversation) {
-      console.log('Conversation not provided');
-      return;
-    }
+  const navigateWithLastTools = (conversation: TConversation, _resetLatestMessage?: boolean) => {
     // set conversation to the new conversation
-    if (conversation.endpoint === EModelEndpoint.gptPlugins) {
+    if (conversation?.endpoint === EModelEndpoint.gptPlugins) {
       let lastSelectedTools = [];
       try {
         lastSelectedTools =
@@ -80,17 +63,15 @@ const useNavigateToConvo = (index = 0) => {
       } catch (e) {
         // console.error(e);
       }
-      const hasTools = (conversation.tools?.length ?? 0) > 0;
       navigateToConvo(
         {
           ...conversation,
-          tools: hasTools ? conversation.tools : lastSelectedTools,
+          tools: conversation?.tools?.length ? conversation?.tools : lastSelectedTools,
         },
         _resetLatestMessage,
-        invalidateMessages,
       );
     } else {
-      navigateToConvo(conversation, _resetLatestMessage, invalidateMessages);
+      navigateToConvo(conversation, _resetLatestMessage);
     }
   };
 

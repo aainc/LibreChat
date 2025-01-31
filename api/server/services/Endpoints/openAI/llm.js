@@ -38,7 +38,6 @@ function getLLMConfig(apiKey, options = {}) {
     dropParams,
   } = options;
 
-  /** @type {OpenAIClientOptions} */
   let llmConfig = {
     streaming,
   };
@@ -55,28 +54,29 @@ function getLLMConfig(apiKey, options = {}) {
     });
   }
 
-  /** @type {OpenAIClientOptions['configuration']} */
   const configOptions = {};
 
   // Handle OpenRouter or custom reverse proxy
   if (useOpenRouter || reverseProxyUrl === 'https://openrouter.ai/api/v1') {
-    configOptions.baseURL = 'https://openrouter.ai/api/v1';
-    configOptions.defaultHeaders = Object.assign(
-      {
-        'HTTP-Referer': 'https://librechat.ai',
-        'X-Title': 'LibreChat',
-      },
-      headers,
-    );
+    configOptions.basePath = 'https://openrouter.ai/api/v1';
+    configOptions.baseOptions = {
+      headers: Object.assign(
+        {
+          'HTTP-Referer': 'https://librechat.ai',
+          'X-Title': 'LibreChat',
+        },
+        headers,
+      ),
+    };
   } else if (reverseProxyUrl) {
-    configOptions.baseURL = reverseProxyUrl;
+    configOptions.basePath = reverseProxyUrl;
     if (headers) {
-      configOptions.defaultHeaders = headers;
+      configOptions.baseOptions = { headers };
     }
   }
 
   if (defaultQuery) {
-    configOptions.defaultQuery = defaultQuery;
+    configOptions.baseOptions.defaultQuery = defaultQuery;
   }
 
   if (proxy) {
@@ -97,9 +97,9 @@ function getLLMConfig(apiKey, options = {}) {
       llmConfig.model = process.env.AZURE_OPENAI_DEFAULT_MODEL;
     }
 
-    if (configOptions.baseURL) {
+    if (configOptions.basePath) {
       const azureURL = constructAzureURL({
-        baseURL: configOptions.baseURL,
+        baseURL: configOptions.basePath,
         azureOptions: azure,
       });
       azure.azureOpenAIBasePath = azureURL.split(`/${azure.azureOpenAIApiDeploymentName}`)[0];
@@ -118,12 +118,7 @@ function getLLMConfig(apiKey, options = {}) {
     llmConfig.organization = process.env.OPENAI_ORGANIZATION;
   }
 
-  return {
-    /** @type {OpenAIClientOptions} */
-    llmConfig,
-    /** @type {OpenAIClientOptions['configuration']} */
-    configOptions,
-  };
+  return { llmConfig, configOptions };
 }
 
 module.exports = { getLLMConfig };

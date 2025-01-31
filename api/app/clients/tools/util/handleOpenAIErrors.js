@@ -23,8 +23,6 @@ async function handleOpenAIErrors(err, errorCallback, context = 'stream') {
     logger.warn(`[OpenAIClient.chatCompletion][${context}] Unhandled error type`);
   }
 
-  logger.error(err);
-
   if (errorCallback) {
     errorCallback(err);
   }

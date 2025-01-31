@@ -1,4 +1,3 @@
-jest.mock('~/cache/getLogStores');
 const request = require('supertest');
 const express = require('express');
 const routes = require('../');

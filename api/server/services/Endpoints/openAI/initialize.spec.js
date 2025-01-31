@@ -1,4 +1,3 @@
-jest.mock('~/cache/getLogStores');
 const { EModelEndpoint, ErrorTypes, validateAzureGroups } = require('librechat-data-provider');
 const { getUserKey, getUserKeyValues } = require('~/server/services/UserService');
 const initializeClient = require('./initialize');

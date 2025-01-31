@@ -5,6 +5,7 @@ import {
   EToolResources,
   mergeFileConfig,
   AgentCapabilities,
+  retrievalMimeTypes,
   fileConfig as defaultFileConfig,
 } from 'librechat-data-provider';
 import type { ExtendedFile, AgentForm } from '~/common';
@@ -76,15 +77,6 @@ export default function FileSearch({
       </div>
       <FileSearchCheckbox />
       <div className="flex flex-col gap-3">
-        {/* File Search (RAG API) Files */}
-        <FileRow
-          files={files}
-          setFiles={setFiles}
-          setFilesLoading={setFilesLoading}
-          agent_id={agent_id}
-          tool_resource={EToolResources.file_search}
-          Wrapper={({ children }) => <div className="flex flex-wrap gap-2">{children}</div>}
-        />
         <div>
           <button
             type="button"
@@ -113,6 +105,18 @@ export default function FileSearch({
             {localize('com_agents_file_search_disabled')}
           </div>
         )}
+        {/* Knowledge Files */}
+        <FileRow
+          files={files}
+          setFiles={setFiles}
+          setFilesLoading={setFilesLoading}
+          agent_id={agent_id}
+          tool_resource={EToolResources.file_search}
+          fileFilter={(file: ExtendedFile) =>
+            retrievalMimeTypes.some((regex) => regex.test(file.type ?? ''))
+          }
+          Wrapper={({ children }) => <div className="flex flex-wrap gap-2">{children}</div>}
+        />
       </div>
     </div>
   );

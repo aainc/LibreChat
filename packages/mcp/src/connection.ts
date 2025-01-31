@@ -55,7 +55,9 @@ export class MCPConnection extends EventEmitter {
         version: '1.0.0',
       },
       {
-        capabilities: {},
+        capabilities: {
+          tools: {},
+        },
       },
     );
 

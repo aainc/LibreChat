@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/media-has-caption */
 import { useEffect, useMemo } from 'react';
 import { useRecoilValue } from 'recoil';
 import type { TMessageAudio } from '~/common';
@@ -79,6 +78,7 @@ export function BrowserTTS({ isLast, index, messageId, content, className }: TMe
           logger.error('Error fetching audio:', error);
         }}
         id={`audio-${messageId}`}
+        muted
         autoPlay
       />
     </>
@@ -169,6 +169,7 @@ export function EdgeTTS({ isLast, index, messageId, content, className }: TMessa
             logger.error('Error fetching audio:', error);
           }}
           id={`audio-${messageId}`}
+          muted
           autoPlay
         />
       ) : null}
@@ -247,6 +248,7 @@ export function ExternalTTS({ isLast, index, messageId, content, className }: TM
           logger.error('Error fetching audio:', error);
         }}
         id={`audio-${messageId}`}
+        muted
         autoPlay
       />
     </>

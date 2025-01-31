@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as Select from '@ariakit/react/select';
 import type { Option } from '~/common';
 import { cn } from '~/utils/';
 
 interface DropdownProps {
-  value?: string;
+  value: string;
   label?: string;
   onChange: (value: string) => void;
   options: string[] | Option[];
@@ -14,7 +14,7 @@ interface DropdownProps {
 }
 
 const Dropdown: React.FC<DropdownProps> = ({
-  value: selectedValue,
+  value: initialValue,
   label = '',
   onChange,
   options,
@@ -22,7 +22,10 @@ const Dropdown: React.FC<DropdownProps> = ({
   sizeClasses,
   testId = 'dropdown-menu',
 }) => {
+  const [selectedValue, setSelectedValue] = useState(initialValue);
+
   const handleChange = (value: string) => {
+    setSelectedValue(value);
     onChange(value);
   };
 

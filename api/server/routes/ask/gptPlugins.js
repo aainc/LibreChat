@@ -1,9 +1,11 @@
 const express = require('express');
-const { getResponseSender, Constants } = require('librechat-data-provider');
+const throttle = require('lodash/throttle');
+const { getResponseSender, Constants, CacheKeys, Time } = require('librechat-data-provider');
 const { initializeClient } = require('~/server/services/Endpoints/gptPlugins');
 const { sendMessage, createOnProgress } = require('~/server/utils');
 const { addTitle } = require('~/server/services/Endpoints/openAI');
 const { saveMessage, updateMessage } = require('~/models');
+const { getLogStores } = require('~/cache');
 const {
   handleAbort,
   createAbortController,
@@ -70,6 +72,15 @@ router.post(
       }
     };
 
+    const messageCache = getLogStores(CacheKeys.MESSAGES);
+    const throttledCacheSet = throttle(
+      (text) => {
+        messageCache.set(responseMessageId, text, Time.FIVE_MINUTES);
+      },
+      3000,
+      { trailing: false },
+    );
+
     let streaming = null;
     let timer = null;
 
@@ -78,10 +89,12 @@ router.post(
       sendIntermediateMessage,
       getPartialText,
     } = createOnProgress({
-      onProgress: () => {
+      onProgress: ({ text: partialText }) => {
         if (timer) {
           clearTimeout(timer);
         }
+
+        throttledCacheSet(partialText);
 
         streaming = new Promise((resolve) => {
           timer = setTimeout(() => {

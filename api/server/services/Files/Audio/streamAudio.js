@@ -1,5 +1,4 @@
-const { CacheKeys, findLastSeparatorIndex, SEPARATORS, Time } = require('librechat-data-provider');
-const { getMessage } = require('~/models/Message');
+const { CacheKeys, findLastSeparatorIndex, SEPARATORS } = require('librechat-data-provider');
 const { getLogStores } = require('~/cache');
 
 /**
@@ -48,11 +47,10 @@ const MAX_NOT_FOUND_COUNT = 6;
 const MAX_NO_CHANGE_COUNT = 10;
 
 /**
- * @param {string} user
  * @param {string} messageId
  * @returns {() => Promise<{ text: string, isFinished: boolean }[]>}
  */
-function createChunkProcessor(user, messageId) {
+function createChunkProcessor(messageId) {
   let notFoundCount = 0;
   let noChangeCount = 0;
   let processedText = '';
@@ -75,27 +73,15 @@ function createChunkProcessor(user, messageId) {
     }
 
     /** @type { string | { text: string; complete: boolean } } */
-    let message = await messageCache.get(messageId);
-    if (!message) {
-      message = await getMessage({ user, messageId });
-    }
+    const message = await messageCache.get(messageId);
 
     if (!message) {
       notFoundCount++;
       return [];
-    } else {
-      messageCache.set(
-        messageId,
-        {
-          text: message.text,
-          complete: true,
-        },
-        Time.FIVE_MINUTES,
-      );
     }
 
     const text = typeof message === 'string' ? message : message.text;
-    const complete = typeof message === 'string' ? false : message.complete ?? true;
+    const complete = typeof message === 'string' ? false : message.complete;
 
     if (text === processedText) {
       noChangeCount++;

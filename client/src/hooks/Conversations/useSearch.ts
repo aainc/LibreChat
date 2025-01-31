@@ -5,23 +5,14 @@ import { useGetSearchEnabledQuery } from 'librechat-data-provider/react-query';
 import type { UseInfiniteQueryResult } from '@tanstack/react-query';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import { useSearchInfiniteQuery } from '~/data-provider';
-import useNewConvo from '~/hooks/useNewConvo';
+import useConversation from './useConversation';
 import store from '~/store';
 
 export default function useSearchMessages({ isAuthenticated }: { isAuthenticated: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [pageNumber, setPageNumber] = useState(1);
-  const { switchToConversation } = useNewConvo();
-  const searchPlaceholderConversation = useCallback(() => {
-    switchToConversation({
-      conversationId: 'search',
-      title: 'Search',
-      endpoint: null,
-      createdAt: '',
-      updatedAt: '',
-    });
-  }, [switchToConversation]);
+  const { searchPlaceholderConversation } = useConversation();
 
   const searchQuery = useRecoilValue(store.searchQuery);
   const setIsSearchEnabled = useSetRecoilState(store.isSearchEnabled);

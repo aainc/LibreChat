@@ -35,6 +35,8 @@ const addToCache = async ({ endpoint, endpointOption, userMessage, responseMessa
     const roles = (options) => {
       if (endpoint === 'openAI') {
         return options?.chatGptLabel || 'ChatGPT';
+      } else if (endpoint === 'bingAI') {
+        return options?.jailbreak ? 'Sydney' : 'BingAI';
       }
     };
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Constants, EModelEndpoint } from 'librechat-data-provider';
 import {
@@ -25,8 +25,9 @@ export default function ChatRoute() {
   const index = 0;
   const { conversationId = '' } = useParams();
 
-  const { hasSetConversation, conversation } = store.useCreateConversationAtom(index);
+  const { conversation } = store.useCreateConversationAtom(index);
   const { newConversation } = useNewConvo();
+  const hasSetConversation = useRef(false);
 
   const modelsQuery = useGetModelsQuery({
     enabled: isAuthenticated,

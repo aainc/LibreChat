@@ -16,7 +16,7 @@ import { cn } from '~/utils';
 import store from '~/store';
 
 const PresetItems: FC<{
-  presets?: Array<TPreset | undefined>;
+  presets: TPreset[];
   onSetDefaultPreset: (preset: TPreset, remove?: boolean) => void;
   onSelectPreset: (preset: TPreset) => void;
   onChangePreset: (preset: TPreset) => void;
@@ -110,17 +110,11 @@ const PresetItems: FC<{
           </div>
         </div>
       )}
-      <Flipper
-        flipKey={presets
-          ?.map((preset) => preset?.presetId)
-          .filter((p) => p)
-          .join('.')}
-      >
+      <Flipper flipKey={presets.map(({ presetId }) => presetId).join('.')}>
         {presets &&
           presets.length > 0 &&
           presets.map((preset, i) => {
-            const presetId = preset?.presetId ?? '';
-            if (!preset || !presetId) {
+            if (!preset || !preset.presetId) {
               return null;
             }
 
@@ -128,23 +122,22 @@ const PresetItems: FC<{
             const Icon = icons[iconKey];
 
             return (
-              <Close asChild key={`preset-${presetId}`}>
-                <div key={`preset-${presetId}`}>
-                  <Flipped flipId={presetId}>
+              <Close asChild key={`preset-${preset.presetId}`}>
+                <div key={`preset-${preset.presetId}`}>
+                  <Flipped flipId={preset.presetId}>
                     <MenuItem
-                      key={`preset-item-${presetId}`}
+                      key={`preset-item-${preset.presetId}`}
                       textClassName="text-xs max-w-[150px] sm:max-w-[200px] truncate md:max-w-full "
                       title={getPresetTitle(preset)}
                       onClick={() => onSelectPreset(preset)}
                       icon={
-                        Icon != null && (
-                          <Icon
-                            context="menu-item"
-                            iconURL={getEndpointField(endpointsConfig, preset.endpoint, 'iconURL')}
-                            className="icon-md mr-1 dark:text-white"
-                            endpoint={preset.endpoint}
-                          />
-                        )
+                        Icon &&
+                        Icon({
+                          context: 'menu-item',
+                          iconURL: getEndpointField(endpointsConfig, preset.endpoint, 'iconURL'),
+                          className: 'icon-md mr-1 dark:text-white',
+                          endpoint: preset.endpoint,
+                        })
                       }
                       selected={false}
                       data-testid={`preset-item-${preset}`}
@@ -153,17 +146,17 @@ const PresetItems: FC<{
                         <button
                           className={cn(
                             'm-0 h-full rounded-md bg-transparent p-2 text-gray-400 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
-                            defaultPreset?.presetId === presetId
+                            defaultPreset?.presetId === preset.presetId
                               ? ''
                               : 'sm:invisible sm:group-hover:visible',
                           )}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            onSetDefaultPreset(preset, defaultPreset?.presetId === presetId);
+                            onSetDefaultPreset(preset, defaultPreset?.presetId === preset.presetId);
                           }}
                         >
-                          <PinIcon unpin={defaultPreset?.presetId === presetId} />
+                          <PinIcon unpin={defaultPreset?.presetId === preset.presetId} />
                         </button>
                         <button
                           className="m-0 h-full rounded-md p-2 text-gray-400 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:invisible sm:group-hover:visible"

@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-import type { TTermsOfService } from 'librechat-data-provider';
 import MarkdownLite from '~/components/Chat/Messages/Content/MarkdownLite';
 import DialogTemplate from '~/components/ui/DialogTemplate';
 import { useAcceptTermsMutation } from '~/data-provider';
@@ -21,7 +19,7 @@ const TermsAndConditionsModal = ({
   onDecline: () => void;
   title?: string;
   contentUrl?: string;
-  modalContent?: TTermsOfService['modalContent'];
+  modalContent?: string;
 }) => {
   const localize = useLocalize();
   const { showToast } = useToastContext();
@@ -51,18 +49,6 @@ const TermsAndConditionsModal = ({
     onOpenChange(isOpen);
   };
 
-  const content = useMemo(() => {
-    if (typeof modalContent === 'string') {
-      return modalContent;
-    }
-
-    if (Array.isArray(modalContent)) {
-      return modalContent.join('\n');
-    }
-
-    return '';
-  }, [modalContent]);
-
   return (
     <OGDialog open={open} onOpenChange={handleOpenChange}>
       <DialogTemplate
@@ -79,8 +65,8 @@ const TermsAndConditionsModal = ({
             aria-label={localize('com_ui_terms_and_conditions')}
           >
             <div className="prose dark:prose-invert w-full max-w-none !text-text-primary">
-              {content !== '' ? (
-                <MarkdownLite content={content} />
+              {modalContent != null && modalContent ? (
+                <MarkdownLite content={modalContent} />
               ) : (
                 <p>{localize('com_ui_no_terms_content')}</p>
               )}

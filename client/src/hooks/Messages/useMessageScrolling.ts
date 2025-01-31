@@ -72,30 +72,22 @@ export default function useMessageScrolling(messagesTree?: TMessage[] | null) {
   });
 
   useEffect(() => {
-    if (!messagesTree || messagesTree.length === 0) {
+    if (!messagesTree) {
       return;
     }
 
-    if (!messagesEndRef.current || !scrollableRef.current) {
-      return;
-    }
-
-    if (isSubmitting && scrollToBottom && abortScroll !== true) {
+    if (isSubmitting && scrollToBottom && !abortScroll) {
       scrollToBottom();
     }
 
     return () => {
-      if (abortScroll === true) {
+      if (abortScroll) {
         scrollToBottom && scrollToBottom.cancel();
       }
     };
   }, [isSubmitting, messagesTree, scrollToBottom, abortScroll]);
 
   useEffect(() => {
-    if (!messagesEndRef.current || !scrollableRef.current) {
-      return;
-    }
-
     if (scrollToBottom && autoScroll && conversationId !== Constants.NEW_CONVO) {
       scrollToBottom();
     }

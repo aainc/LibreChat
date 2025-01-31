@@ -61,7 +61,6 @@ const initializeClient = async ({ req, res, endpointOption }) => {
     eventHandlers,
     collectedUsage,
     spec: endpointOption.spec,
-    iconURL: endpointOption.iconURL,
     endpoint: EModelEndpoint.bedrock,
     resendFiles: endpointOption.resendFiles,
     maxContextTokens:

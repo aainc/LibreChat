@@ -12,7 +12,6 @@ export const columns: ColumnDef<TFile>[] = [
       return (
         <Button
           variant="ghost"
-          className="hover:bg-surface-hover"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Name
@@ -34,7 +33,6 @@ export const columns: ColumnDef<TFile>[] = [
       return (
         <Button
           variant="ghost"
-          className="hover:bg-surface-hover"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Date
@@ -43,9 +41,7 @@ export const columns: ColumnDef<TFile>[] = [
       );
     },
     cell: ({ row }) => (
-      <span className="flex justify-end text-xs">
-        {formatDate(row.original.updatedAt?.toString() ?? '')}
-      </span>
+      <span className="flex justify-end text-xs">{formatDate(row.original.updatedAt)}</span>
     ),
   },
 ];

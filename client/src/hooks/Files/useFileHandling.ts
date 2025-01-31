@@ -39,6 +39,7 @@ const useFileHandling = (params?: UseFileHandling) => {
   const [errors, setErrors] = useState<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { startUploadTimer, clearUploadTimer } = useDelayedUploadToast();
+  const [toolResource, setToolResource] = useState<string | undefined>();
   const { files, setFiles, setFilesLoading, conversation } = useChatContext();
   const setError = (error: string) => setErrors((prevErrors) => [...prevErrors, error]);
   const { addFile, replaceFile, updateFileById, deleteFileById } = useUpdateFiles(
@@ -148,6 +149,9 @@ const useFileHandling = (params?: UseFileHandling) => {
             : error?.response?.data?.message ?? 'com_error_files_upload';
         setError(errorMessage);
       },
+      onMutate: () => {
+        setToolResource(undefined);
+      },
     },
     abortControllerRef.current?.signal,
   );
@@ -183,9 +187,8 @@ const useFileHandling = (params?: UseFileHandling) => {
       if (!agent_id) {
         formData.append('message_file', 'true');
       }
-      const tool_resource = extendedFile.tool_resource;
-      if (tool_resource != null) {
-        formData.append('tool_resource', tool_resource);
+      if (toolResource != null) {
+        formData.append('tool_resource', toolResource);
       }
       if (conversation?.agent_id != null && formData.get('agent_id') == null) {
         formData.append('agent_id', conversation.agent_id);
@@ -324,7 +327,7 @@ const useFileHandling = (params?: UseFileHandling) => {
     img.src = preview;
   };
 
-  const handleFiles = async (_files: FileList | File[], _toolResource?: string) => {
+  const handleFiles = async (_files: FileList | File[]) => {
     abortControllerRef.current = new AbortController();
     const fileList = Array.from(_files);
     /* Validate files */
@@ -355,22 +358,9 @@ const useFileHandling = (params?: UseFileHandling) => {
           size: originalFile.size,
         };
 
-        if (_toolResource != null && _toolResource !== '') {
-          extendedFile.tool_resource = _toolResource;
-        }
-
-        const isImage = originalFile.type.split('/')[0] === 'image';
-        const tool_resource =
-          extendedFile.tool_resource ?? params?.additionalMetadata?.tool_resource;
-        if (isAgentsEndpoint(endpoint) && !isImage && tool_resource == null) {
-          /** Note: this needs to be removed when we can support files to providers */
-          setError('com_error_files_unsupported_capability');
-          continue;
-        }
-
         addFile(extendedFile);
 
-        if (isImage) {
+        if (originalFile.type.split('/')[0] === 'image') {
           loadImage(extendedFile, preview);
           continue;
         }
@@ -384,11 +374,11 @@ const useFileHandling = (params?: UseFileHandling) => {
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, _toolResource?: string) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     event.stopPropagation();
     if (event.target.files) {
       setFilesLoading(true);
-      handleFiles(event.target.files, _toolResource);
+      handleFiles(event.target.files);
       // reset the input
       event.target.value = '';
     }
@@ -404,6 +394,7 @@ const useFileHandling = (params?: UseFileHandling) => {
 
   return {
     handleFileChange,
+    setToolResource,
     handleFiles,
     abortUpload,
     setFiles,

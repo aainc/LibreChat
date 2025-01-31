@@ -1,5 +1,3 @@
-import React from 'react';
-
 export * from './map';
 export * from './json';
 export * from './files';
@@ -13,15 +11,17 @@ export * from './textarea';
 export * from './messages';
 export * from './languages';
 export * from './endpoints';
-export * from './localStorage';
+export * from './sharedLink';
 export * from './promptGroups';
 export { default as cn } from './cn';
 export { default as logger } from './logger';
 export { default as buildTree } from './buildTree';
 export { default as getLoginError } from './getLoginError';
 export { default as cleanupPreset } from './cleanupPreset';
+export { default as validateIframe } from './validateIframe';
 export { default as buildDefaultConvo } from './buildDefaultConvo';
 export { default as getDefaultEndpoint } from './getDefaultEndpoint';
+export { default as getLocalStorageItems } from './getLocalStorageItems';
 
 export const languages = [
   'java',
@@ -82,19 +82,4 @@ export const handleDoubleClick: React.MouseEventHandler<HTMLElement> = (event) =
   }
   selection.removeAllRanges();
   selection.addRange(range);
-};
-
-export const extractContent = (
-  children: React.ReactNode | { props: { children: React.ReactNode } } | string,
-): string => {
-  if (typeof children === 'string') {
-    return children;
-  }
-  if (React.isValidElement(children)) {
-    return extractContent((children.props as { children?: React.ReactNode }).children);
-  }
-  if (Array.isArray(children)) {
-    return children.map(extractContent).join('');
-  }
-  return '';
 };

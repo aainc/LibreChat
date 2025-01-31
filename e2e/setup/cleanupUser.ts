@@ -1,11 +1,5 @@
 import connectDb from '@librechat/backend/lib/db/connectDb';
-import {
-  deleteMessages,
-  deleteConvos,
-  User,
-  deleteAllUserSessions,
-  Balance,
-} from '@librechat/backend/models';
+import { deleteMessages, deleteConvos, User, Session, Balance } from '@librechat/backend/models';
 import { Transaction } from '@librechat/backend/models/Transaction';
 type TUser = { email: string; password: string };
 
@@ -32,8 +26,7 @@ export default async function cleanupUser(user: TUser) {
       console.log(`🤖:  ✅  Deleted ${deletedMessages} remaining message(s)`);
     }
 
-    // TODO: fix this to delete all user sessions with the user's email
-    await deleteAllUserSessions(user);
+    await Session.deleteAllUserSessions(user);
 
     await User.deleteMany({ _id: user });
     await Balance.deleteMany({ user });

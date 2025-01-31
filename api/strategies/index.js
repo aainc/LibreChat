@@ -1,4 +1,3 @@
-const appleLogin = require('./appleStrategy');
 const passportLogin = require('./localStrategy');
 const googleLogin = require('./googleStrategy');
 const githubLogin = require('./githubStrategy');
@@ -9,7 +8,6 @@ const jwtLogin = require('./jwtStrategy');
 const ldapLogin = require('./ldapStrategy');
 
 module.exports = {
-  appleLogin,
   passportLogin,
   googleLogin,
   githubLogin,

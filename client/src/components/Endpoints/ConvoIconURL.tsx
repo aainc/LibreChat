@@ -1,11 +1,10 @@
-import { memo, useMemo } from 'react';
+import React, { memo } from 'react';
+import type { TPreset } from 'librechat-data-provider';
 import type { IconMapProps } from '~/common';
 import { icons } from '~/components/Chat/Menus/Endpoints/Icons';
-import { URLIcon } from '~/components/Endpoints/URLIcon';
 
 interface ConvoIconURLProps {
-  iconURL?: string;
-  modelLabel?: string | null;
+  preset: TPreset | null;
   endpointIconURL?: string;
   assistantName?: string;
   agentName?: string;
@@ -30,8 +29,7 @@ const styleImageMap = {
 };
 
 const ConvoIconURL: React.FC<ConvoIconURLProps> = ({
-  iconURL = '',
-  modelLabel = '',
+  preset,
   endpointIconURL,
   assistantAvatar,
   assistantName,
@@ -39,26 +37,34 @@ const ConvoIconURL: React.FC<ConvoIconURLProps> = ({
   agentName,
   context,
 }) => {
-  const Icon: (
+  const { iconURL = '' } = preset ?? {};
+  let Icon: (
     props: IconMapProps & {
       context?: string;
       iconURL?: string;
     },
-  ) => React.JSX.Element = useMemo(() => icons[iconURL] ?? icons.unknown, [iconURL]);
-  const isURL = useMemo(
-    () => !!(iconURL && (iconURL.includes('http') || iconURL.startsWith('/images/'))),
-    [iconURL],
-  );
-  if (isURL) {
-    return (
-      <URLIcon
-        iconURL={iconURL}
-        altName={modelLabel}
+  ) => React.JSX.Element;
+
+  const isURL = !!(iconURL && (iconURL.includes('http') || iconURL.startsWith('/images/')));
+
+  if (!isURL) {
+    Icon = icons[iconURL] ?? icons.unknown;
+  } else {
+    Icon = () => (
+      <div
         className={classMap[context ?? 'default'] ?? classMap.default}
-        containerStyle={styleMap[context ?? 'default'] ?? styleMap.default}
-        imageStyle={styleImageMap[context ?? 'default'] ?? styleImageMap.default}
-      />
+        style={styleMap[context ?? 'default'] ?? styleMap.default}
+      >
+        <img
+          src={iconURL}
+          alt={preset?.chatGptLabel ?? preset?.modelLabel ?? ''}
+          style={styleImageMap[context ?? 'default'] ?? styleImageMap.default}
+          className="object-cover"
+        />
+      </div>
     );
+
+    return <Icon context={context} />;
   }
 
   return (

@@ -36,6 +36,7 @@ export default function MenuButton({
         aria-haspopup="listbox"
         aria-expanded={isExpanded}
         aria-controls="llm-menu"
+        aria-activedescendant={isExpanded ? 'selected-llm' : undefined}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {selected && selected.showIconInHeader === true && (

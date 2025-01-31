@@ -1,9 +1,8 @@
-import { memo, useCallback } from 'react';
+import { memo } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import { useGetMessagesByConvoId } from 'librechat-data-provider/react-query';
-import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
 import { useChatHelpers, useAddedResponse, useSSE } from '~/hooks';
@@ -25,13 +24,10 @@ function ChatView({ index = 0 }: { index?: number }) {
   const fileMap = useFileMapContext();
 
   const { data: messagesTree = null, isLoading } = useGetMessagesByConvoId(conversationId ?? '', {
-    select: useCallback(
-      (data: TMessage[]) => {
-        const dataTree = buildTree({ messages: data, fileMap });
-        return dataTree?.length === 0 ? null : dataTree ?? null;
-      },
-      [fileMap],
-    ),
+    select: (data) => {
+      const dataTree = buildTree({ messages: data, fileMap });
+      return dataTree?.length === 0 ? null : dataTree ?? null;
+    },
     enabled: !!fileMap,
   });
 

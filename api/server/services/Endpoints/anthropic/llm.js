@@ -28,32 +28,28 @@ function getLLMConfig(apiKey, options = {}) {
 
   const mergedOptions = Object.assign(defaultOptions, options.modelOptions);
 
-  /** @type {AnthropicClientOptions} */
   const requestOptions = {
     apiKey,
     model: mergedOptions.model,
     stream: mergedOptions.stream,
     temperature: mergedOptions.temperature,
-    topP: mergedOptions.topP,
-    topK: mergedOptions.topK,
-    stopSequences: mergedOptions.stop,
-    maxTokens:
+    top_p: mergedOptions.topP,
+    top_k: mergedOptions.topK,
+    stop_sequences: mergedOptions.stop,
+    max_tokens:
       mergedOptions.maxOutputTokens || anthropicSettings.maxOutputTokens.reset(mergedOptions.model),
-    clientOptions: {},
   };
 
+  const configOptions = {};
   if (options.proxy) {
-    requestOptions.clientOptions.httpAgent = new HttpsProxyAgent(options.proxy);
+    configOptions.httpAgent = new HttpsProxyAgent(options.proxy);
   }
 
   if (options.reverseProxyUrl) {
-    requestOptions.clientOptions.baseURL = options.reverseProxyUrl;
+    configOptions.baseURL = options.reverseProxyUrl;
   }
 
-  return {
-    /** @type {AnthropicClientOptions} */
-    llmConfig: removeNullishValues(requestOptions),
-  };
+  return { llmConfig: removeNullishValues(requestOptions), configOptions };
 }
 
 module.exports = { getLLMConfig };

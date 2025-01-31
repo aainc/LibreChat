@@ -54,7 +54,7 @@ const initializeClient = async ({
   let apiKey = userProvidesKey ? userValues?.apiKey : credentials[endpoint];
   let baseURL = userProvidesURL ? userValues?.baseURL : baseURLOptions[endpoint];
 
-  let clientOptions = {
+  const clientOptions = {
     contextStrategy,
     proxy: PROXY ?? null,
     debug: isEnabled(DEBUG_OPENAI),
@@ -134,13 +134,13 @@ const initializeClient = async ({
   }
 
   if (optionsOnly) {
-    clientOptions = Object.assign(
+    const requestOptions = Object.assign(
       {
         modelOptions: endpointOption.model_parameters,
       },
       clientOptions,
     );
-    const options = getLLMConfig(apiKey, clientOptions);
+    const options = getLLMConfig(apiKey, requestOptions);
     if (!clientOptions.streamRate) {
       return options;
     }
