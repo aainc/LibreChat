@@ -153,24 +153,16 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
           {renderError('password')}
         </div>
         {startupConfig.passwordResetEnabled && (
-          <a
-            href="/forgot-password"
-            className="inline-flex p-1 text-sm font-medium text-green-600 transition-colors hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
-          >
+          <a href="/forgot-password" className="text-sm text-green-500">
             {localize('com_auth_password_forgot')}
           </a>
         )}
         <div className="mt-6">
           <button
-            aria-label={localize('com_auth_continue')}
+            aria-label="Sign in"
             data-testid="login-button"
             type="submit"
-            className="
-            w-full rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white
-            transition-colors hover:bg-green-700 focus:outline-none focus:ring-2
-            focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50
-            disabled:hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700
-          "
+            className="btn-primary w-full transform rounded-2xl px-4 py-3 tracking-wide transition-colors duration-200"
           >
             {localize('com_auth_continue')}
           </button>

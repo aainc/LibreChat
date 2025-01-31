@@ -1,12 +1,9 @@
 import React from 'react';
-import { useRecoilValue } from 'recoil';
 import { useMessageProcess } from '~/hooks';
 import type { TMessageProps } from '~/common';
 import MessageRender from './ui/MessageRender';
 // eslint-disable-next-line import/no-cycle
 import MultiMessage from './MultiMessage';
-import { cn } from '~/utils';
-import store from '~/store';
 
 const MessageContainer = React.memo(
   ({
@@ -38,7 +35,6 @@ export default function Message(props: TMessageProps) {
     isSubmittingFamily,
   } = useMessageProcess({ message: props.message });
   const { message, currentEditId, setCurrentEditId } = props;
-  const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
 
   if (!message || typeof message !== 'object') {
     return null;
@@ -51,12 +47,7 @@ export default function Message(props: TMessageProps) {
       <MessageContainer handleScroll={handleScroll}>
         {showSibling ? (
           <div className="m-auto my-2 flex justify-center p-4 py-2 md:gap-6">
-            <div
-              className={cn(
-                'flex w-full flex-row flex-wrap justify-between gap-1 md:flex-nowrap md:gap-2',
-                maximizeChatSpace ? 'w-full max-w-full' : 'md:max-w-5xl xl:max-w-6xl',
-              )}
-            >
+            <div className="flex w-full flex-row flex-wrap justify-between gap-1 md:max-w-5xl md:flex-nowrap md:gap-2 lg:max-w-5xl xl:max-w-6xl">
               <MessageRender
                 {...props}
                 message={message}

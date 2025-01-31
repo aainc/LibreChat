@@ -60,41 +60,42 @@ const getOptions = async ({ req, endpointOption }) => {
     streamRate = allConfig.streamRate;
   }
 
-  /** @type {BedrockClientOptions} */
-  const requestOptions = {
-    model: endpointOption.model,
-    region: BEDROCK_AWS_DEFAULT_REGION,
-    streaming: true,
-    streamUsage: true,
-    callbacks: [
-      {
-        handleLLMNewToken: async () => {
-          if (!streamRate) {
-            return;
-          }
-          await sleep(streamRate);
+  /** @type {import('@librechat/agents').BedrockConverseClientOptions} */
+  const requestOptions = Object.assign(
+    {
+      model: endpointOption.model,
+      region: BEDROCK_AWS_DEFAULT_REGION,
+      streaming: true,
+      streamUsage: true,
+      callbacks: [
+        {
+          handleLLMNewToken: async () => {
+            if (!streamRate) {
+              return;
+            }
+            await sleep(streamRate);
+          },
         },
-      },
-    ],
-  };
+      ],
+    },
+    endpointOption.model_parameters,
+  );
 
   if (credentials) {
     requestOptions.credentials = credentials;
   }
 
-  if (BEDROCK_REVERSE_PROXY) {
-    requestOptions.endpointHost = BEDROCK_REVERSE_PROXY;
-  }
-
   const configOptions = {};
   if (PROXY) {
-    /** NOTE: NOT SUPPORTED BY BEDROCK */
     configOptions.httpAgent = new HttpsProxyAgent(PROXY);
   }
 
+  if (BEDROCK_REVERSE_PROXY) {
+    configOptions.endpointHost = BEDROCK_REVERSE_PROXY;
+  }
+
   return {
-    /** @type {BedrockClientOptions} */
-    llmConfig: removeNullishValues(Object.assign(requestOptions, endpointOption.model_parameters)),
+    llmConfig: removeNullishValues(requestOptions),
     configOptions,
   };
 };

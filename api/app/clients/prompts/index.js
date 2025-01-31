@@ -4,7 +4,7 @@ const summaryPrompts = require('./summaryPrompts');
 const handleInputs = require('./handleInputs');
 const instructions = require('./instructions');
 const titlePrompts = require('./titlePrompts');
-const truncate = require('./truncate');
+const truncateText = require('./truncateText');
 const createVisionPrompt = require('./createVisionPrompt');
 const createContextHandlers = require('./createContextHandlers');
 
@@ -15,7 +15,7 @@ module.exports = {
   ...handleInputs,
   ...instructions,
   ...titlePrompts,
-  ...truncate,
+  ...truncateText,
   createVisionPrompt,
   createContextHandlers,
 };

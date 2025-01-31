@@ -7,7 +7,6 @@ import {
 import {
   alternateName,
   EModelEndpoint,
-  isAgentsEndpoint,
   getConfigDefaults,
   isAssistantsEndpoint,
 } from 'librechat-data-provider';
@@ -122,26 +121,6 @@ export default function useMentions({
     if (!includeAssistants) {
       validEndpoints = endpoints.filter((endpoint) => !isAssistantsEndpoint(endpoint));
     }
-
-    const modelOptions = validEndpoints.flatMap((endpoint) => {
-      if (isAssistantsEndpoint(endpoint) || isAgentsEndpoint(endpoint)) {
-        return [];
-      }
-
-      const models = (modelsConfig?.[endpoint] ?? []).map((model) => ({
-        value: endpoint,
-        label: model,
-        type: 'model' as const,
-        icon: EndpointIcon({
-          conversation: { endpoint, model },
-          endpointsConfig,
-          context: 'menu-item',
-          size: 20,
-        }),
-      }));
-      return models;
-    });
-
     const mentions = [
       ...(modelSpecs.length > 0 ? modelSpecs : []).map((modelSpec) => ({
         value: modelSpec.name,
@@ -190,7 +169,6 @@ export default function useMentions({
         }),
         type: 'preset' as const,
       })) ?? []),
-      ...modelOptions,
     ];
 
     return mentions;
@@ -200,7 +178,6 @@ export default function useMentions({
     modelSpecs,
     agentsList,
     assistantMap,
-    modelsConfig,
     endpointsConfig,
     assistantListMap,
     includeAssistants,

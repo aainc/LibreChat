@@ -21,6 +21,14 @@ const shareSchema = mongoose.Schema(
     },
     isPublic: {
       type: Boolean,
+      default: false,
+    },
+    isVisible: {
+      type: Boolean,
+      default: false,
+    },
+    isAnonymous: {
+      type: Boolean,
       default: true,
     },
   },

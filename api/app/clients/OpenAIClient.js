@@ -1,7 +1,6 @@
 const OpenAI = require('openai');
 const { OllamaClient } = require('./OllamaClient');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const { SplitStreamHandler, GraphEvents } = require('@librechat/agents');
 const {
   Constants,
   ImageDetail,
@@ -14,6 +13,7 @@ const {
   validateVisionModel,
   mapModelToAzureConfig,
 } = require('librechat-data-provider');
+const { encoding_for_model: encodingForModel, get_encoding: getEncoding } = require('tiktoken');
 const {
   extractBaseURL,
   constructAzureURL,
@@ -29,17 +29,21 @@ const {
   createContextHandlers,
 } = require('./prompts');
 const { encodeAndFormat } = require('~/server/services/Files/images/encode');
-const { addSpaceIfNeeded, isEnabled, sleep } = require('~/server/utils');
-const Tokenizer = require('~/server/services/Tokenizer');
 const { spendTokens } = require('~/models/spendTokens');
+const { isEnabled, sleep } = require('~/server/utils');
 const { handleOpenAIErrors } = require('./tools/util');
 const { createLLM, RunManager } = require('./llm');
-const { logger, sendEvent } = require('~/config');
 const ChatGPTClient = require('./ChatGPTClient');
 const { summaryBuffer } = require('./memory');
 const { runTitleChain } = require('./chains');
 const { tokenSplit } = require('./document');
 const BaseClient = require('./BaseClient');
+const { logger } = require('~/config');
+
+// Cache to store Tiktoken instances
+const tokenizersCache = {};
+// Counter for keeping track of the number of tokenizer calls
+let tokenizerCallsCount = 0;
 
 class OpenAIClient extends BaseClient {
   constructor(apiKey, options = {}) {
@@ -66,8 +70,6 @@ class OpenAIClient extends BaseClient {
     this.usage;
     /** @type {boolean|undefined} */
     this.isO1Model;
-    /** @type {SplitStreamHandler | undefined} */
-    this.streamHandler;
   }
 
   // TODO: PluginsClient calls this 3x, unneeded
@@ -305,8 +307,75 @@ class OpenAIClient extends BaseClient {
     }
   }
 
-  getEncoding() {
-    return this.model?.includes('gpt-4o') ? 'o200k_base' : 'cl100k_base';
+  // Selects an appropriate tokenizer based on the current configuration of the client instance.
+  // It takes into account factors such as whether it's a chat completion, an unofficial chat GPT model, etc.
+  selectTokenizer() {
+    let tokenizer;
+    this.encoding = 'text-davinci-003';
+    if (this.isChatCompletion) {
+      this.encoding = this.modelOptions.model.includes('gpt-4o') ? 'o200k_base' : 'cl100k_base';
+      tokenizer = this.constructor.getTokenizer(this.encoding);
+    } else if (this.isUnofficialChatGptModel) {
+      const extendSpecialTokens = {
+        '<|im_start|>': 100264,
+        '<|im_end|>': 100265,
+      };
+      tokenizer = this.constructor.getTokenizer(this.encoding, true, extendSpecialTokens);
+    } else {
+      try {
+        const { model } = this.modelOptions;
+        this.encoding = model.includes('instruct') ? 'text-davinci-003' : model;
+        tokenizer = this.constructor.getTokenizer(this.encoding, true);
+      } catch {
+        tokenizer = this.constructor.getTokenizer('text-davinci-003', true);
+      }
+    }
+
+    return tokenizer;
+  }
+
+  // Retrieves a tokenizer either from the cache or creates a new one if one doesn't exist in the cache.
+  // If a tokenizer is being created, it's also added to the cache.
+  static getTokenizer(encoding, isModelName = false, extendSpecialTokens = {}) {
+    let tokenizer;
+    if (tokenizersCache[encoding]) {
+      tokenizer = tokenizersCache[encoding];
+    } else {
+      if (isModelName) {
+        tokenizer = encodingForModel(encoding, extendSpecialTokens);
+      } else {
+        tokenizer = getEncoding(encoding, extendSpecialTokens);
+      }
+      tokenizersCache[encoding] = tokenizer;
+    }
+    return tokenizer;
+  }
+
+  // Frees all encoders in the cache and resets the count.
+  static freeAndResetAllEncoders() {
+    try {
+      Object.keys(tokenizersCache).forEach((key) => {
+        if (tokenizersCache[key]) {
+          tokenizersCache[key].free();
+          delete tokenizersCache[key];
+        }
+      });
+      // Reset count
+      tokenizerCallsCount = 1;
+    } catch (error) {
+      logger.error('[OpenAIClient] Free and reset encoders error', error);
+    }
+  }
+
+  // Checks if the cache of tokenizers has reached a certain size. If it has, it frees and resets all tokenizers.
+  resetTokenizersIfNecessary() {
+    if (tokenizerCallsCount >= 25) {
+      if (this.options.debug) {
+        logger.debug('[OpenAIClient] freeAndResetAllEncoders: reached 25 encodings, resetting...');
+      }
+      this.constructor.freeAndResetAllEncoders();
+    }
+    tokenizerCallsCount++;
   }
 
   /**
@@ -315,8 +384,15 @@ class OpenAIClient extends BaseClient {
    * @returns {number} The token count of the given text.
    */
   getTokenCount(text) {
-    const encoding = this.getEncoding();
-    return Tokenizer.getTokenCount(text, encoding);
+    this.resetTokenizersIfNecessary();
+    try {
+      const tokenizer = this.selectTokenizer();
+      return tokenizer.encode(text, 'all').length;
+    } catch (error) {
+      this.constructor.freeAndResetAllEncoders();
+      const tokenizer = this.selectTokenizer();
+      return tokenizer.encode(text, 'all').length;
+    }
   }
 
   /**
@@ -617,6 +693,8 @@ class OpenAIClient extends BaseClient {
     model = 'gpt-4o-mini',
     modelName,
     temperature = 0.2,
+    presence_penalty = 0,
+    frequency_penalty = 0,
     max_tokens,
     streaming,
     context,
@@ -627,6 +705,8 @@ class OpenAIClient extends BaseClient {
     const modelOptions = {
       modelName: modelName ?? model,
       temperature,
+      presence_penalty,
+      frequency_penalty,
       user: this.user,
     };
 
@@ -797,11 +877,7 @@ ${convo}
         }
 
         title = (
-          await this.sendPayload(instructionsPayload, {
-            modelOptions,
-            useChatCompletion,
-            context: 'title',
-          })
+          await this.sendPayload(instructionsPayload, { modelOptions, useChatCompletion })
         ).replaceAll('"', '');
 
         const completionTokens = this.getTokenCount(title);
@@ -934,10 +1010,7 @@ ${convo}
     );
 
     if (excessTokenCount > maxContextTokens) {
-      ({ context } = await this.getMessagesWithinTokenLimit({
-        messages: context,
-        maxContextTokens,
-      }));
+      ({ context } = await this.getMessagesWithinTokenLimit(context, maxContextTokens));
     }
 
     if (context.length === 0) {
@@ -1067,36 +1140,10 @@ ${convo}
     });
   }
 
-  getStreamText() {
-    if (!this.streamHandler) {
-      return '';
-    }
-
-    const reasoningTokens =
-      this.streamHandler.reasoningTokens.length > 0
-        ? `:::thinking\n${this.streamHandler.reasoningTokens.join('')}\n:::\n`
-        : '';
-
-    return `${reasoningTokens}${this.streamHandler.tokens.join('')}`;
-  }
-
-  getMessageMapMethod() {
-    /**
-     * @param {TMessage} msg
-     */
-    return (msg) => {
-      if (msg.text != null && msg.text && msg.text.startsWith(':::thinking')) {
-        msg.text = msg.text.replace(/:::thinking.*?:::/gs, '').trim();
-      }
-
-      return msg;
-    };
-  }
-
   async chatCompletion({ payload, onProgress, abortController = null }) {
     let error = null;
-    let intermediateReply = [];
     const errorCallback = (err) => (error = err);
+    const intermediateReply = [];
     try {
       if (!abortController) {
         abortController = new AbortController();
@@ -1286,28 +1333,7 @@ ${convo}
       ) {
         delete modelOptions.stream;
         delete modelOptions.stop;
-      } else if (!this.isO1Model && modelOptions.reasoning_effort != null) {
-        delete modelOptions.reasoning_effort;
       }
-
-      let reasoningKey = 'reasoning_content';
-      if (this.useOpenRouter) {
-        modelOptions.include_reasoning = true;
-        reasoningKey = 'reasoning';
-      }
-
-      this.streamHandler = new SplitStreamHandler({
-        reasoningKey,
-        accumulate: true,
-        runId: this.responseMessageId,
-        handlers: {
-          [GraphEvents.ON_RUN_STEP]: (event) => sendEvent(this.options.res, event),
-          [GraphEvents.ON_MESSAGE_DELTA]: (event) => sendEvent(this.options.res, event),
-          [GraphEvents.ON_REASONING_DELTA]: (event) => sendEvent(this.options.res, event),
-        },
-      });
-
-      intermediateReply = this.streamHandler.tokens;
 
       if (modelOptions.stream) {
         streamPromise = new Promise((resolve) => {
@@ -1335,44 +1361,20 @@ ${convo}
             }
 
             if (typeof finalMessage.content !== 'string' || finalMessage.content.trim() === '') {
-              finalChatCompletion.choices[0].message.content = this.streamHandler.tokens.join('');
+              finalChatCompletion.choices[0].message.content = intermediateReply.join('');
             }
           })
           .on('finalMessage', (message) => {
             if (message?.role !== 'assistant') {
-              stream.messages.push({
-                role: 'assistant',
-                content: this.streamHandler.tokens.join(''),
-              });
+              stream.messages.push({ role: 'assistant', content: intermediateReply.join('') });
               UnexpectedRoleError = true;
             }
           });
 
-        if (this.continued === true) {
-          const latestText = addSpaceIfNeeded(
-            this.currentMessages[this.currentMessages.length - 1]?.text ?? '',
-          );
-          this.streamHandler.handle({
-            choices: [
-              {
-                delta: {
-                  content: latestText,
-                },
-              },
-            ],
-          });
-        }
-
         for await (const chunk of stream) {
-          // Add finish_reason: null if missing in any choice
-          if (chunk.choices) {
-            chunk.choices.forEach(choice => {
-              if (!('finish_reason' in choice)) {
-                choice.finish_reason = null;
-              }
-            });
-          }
-          this.streamHandler.handle(chunk);
+          const token = chunk.choices[0]?.delta?.content || '';
+          intermediateReply.push(token);
+          onProgress(token);
           if (abortController.signal.aborted) {
             stream.controller.abort();
             break;
@@ -1415,7 +1417,7 @@ ${convo}
 
       if (!Array.isArray(choices) || choices.length === 0) {
         logger.warn('[OpenAIClient] Chat completion response has no choices');
-        return this.streamHandler.tokens.join('');
+        return intermediateReply.join('');
       }
 
       const { message, finish_reason } = choices[0] ?? {};
@@ -1425,30 +1427,16 @@ ${convo}
 
       if (!message) {
         logger.warn('[OpenAIClient] Message is undefined in chatCompletion response');
-        return this.streamHandler.tokens.join('');
+        return intermediateReply.join('');
       }
 
       if (typeof message.content !== 'string' || message.content.trim() === '') {
-        const reply = this.streamHandler.tokens.join('');
+        const reply = intermediateReply.join('');
         logger.debug(
           '[OpenAIClient] chatCompletion: using intermediateReply due to empty message.content',
           { intermediateReply: reply },
         );
         return reply;
-      }
-
-      if (
-        this.streamHandler.reasoningTokens.length > 0 &&
-        this.options.context !== 'title' &&
-        !message.content.startsWith('<think>')
-      ) {
-        return this.getStreamText();
-      } else if (
-        this.streamHandler.reasoningTokens.length > 0 &&
-        this.options.context !== 'title' &&
-        message.content.startsWith('<think>')
-      ) {
-        return message.content.replace('<think>', ':::thinking').replace('</think>', ':::');
       }
 
       return message.content;
@@ -1472,11 +1460,7 @@ ${convo}
         (err instanceof OpenAI.OpenAIError && err?.message?.includes('missing finish_reason'))
       ) {
         logger.error('[OpenAIClient] Known OpenAI error:', err);
-        if (intermediateReply.length > 0) {
-          return intermediateReply.join('');
-        } else {
-          throw err;
-        }
+        return intermediateReply.join('');
       } else if (err instanceof OpenAI.APIError) {
         if (intermediateReply.length > 0) {
           return intermediateReply.join('');

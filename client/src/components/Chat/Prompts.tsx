@@ -77,7 +77,6 @@ export default function Prompts() {
             onClick={prevPage}
             disabled={!hasPreviousPage}
             className="m-0 self-start p-0 hover:bg-transparent"
-            aria-label="previous"
           >
             <ChevronLeft className={`${hasPreviousPage ? '' : 'text-gray-500'}`} />
           </Button>

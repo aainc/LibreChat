@@ -579,6 +579,8 @@ describe('Conversation Utilities with Fake Data', () => {
         5,
       );
 
+      console.log(normalizedData);
+
       expect(normalizedData.pages[0].conversations).toHaveLength(0);
     });
 

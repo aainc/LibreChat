@@ -20,7 +20,7 @@ function useDebouncedInput<T = unknown>({
   initialValue: T;
   delay?: number;
 }): [
-  (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | T, numeric?: boolean) => void,
+  (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | T) => void,
   T,
   SetterOrUpdater<T>,
   // (newValue: string) => void,
@@ -37,15 +37,12 @@ function useDebouncedInput<T = unknown>({
 
   /** An onChange handler that updates the local state and the debounced option */
   const onChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | T, numeric?: boolean) => {
-      let newValue: T =
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | T) => {
+      const newValue: T =
         typeof e !== 'object'
           ? e
           : ((e as React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>).target
             .value as unknown as T);
-      if (numeric === true) {
-        newValue = Number(newValue) as unknown as T;
-      }
       setValue(newValue);
       setDebouncedOption(newValue);
     },

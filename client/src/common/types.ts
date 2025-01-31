@@ -91,14 +91,7 @@ export type IconMapProps = {
   size?: number;
 };
 
-export type IconComponent = React.ComponentType<IconMapProps>;
-export type AgentIconComponent = React.ComponentType<AgentIconMapProps>;
-export type IconComponentTypes = IconComponent | AgentIconComponent;
-export type IconsRecord = {
-  [key in t.EModelEndpoint | 'unknown' | string]: IconComponentTypes | null | undefined;
-};
-
-export type AgentIconMapProps = IconMapProps & { agentName?: string };
+export type AgentIconMapProps = IconMapProps & { agentName: string };
 
 export type NavLink = {
   title: string;
@@ -313,12 +306,6 @@ export type TMessageProps = {
   setSiblingIdx?: ((value: number) => void | React.Dispatch<React.SetStateAction<number>>) | null;
 };
 
-export type TMessageIcon = { endpoint?: string | null; isCreatedByUser?: boolean } & Pick<
-  t.TConversation,
-  'modelLabel'
-> &
-  Pick<t.TMessage, 'model' | 'iconURL'>;
-
 export type TInitialProps = {
   text: string;
   edit: boolean;
@@ -476,7 +463,6 @@ export interface ExtendedFile {
   source?: FileSources;
   attached?: boolean;
   embedded?: boolean;
-  tool_resource?: string;
 }
 
 export type ContextType = { navVisible: boolean; setNavVisible: (visible: boolean) => void };

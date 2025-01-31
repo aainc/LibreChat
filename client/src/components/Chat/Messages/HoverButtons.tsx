@@ -50,13 +50,9 @@ export default function HoverButtons({
   } = useGenerationsByLatest({
     isEditing,
     isSubmitting,
-    error: message.error,
+    message,
     endpoint: endpoint ?? '',
-    messageId: message.messageId,
-    searchResult: message.searchResult,
-    finish_reason: message.finish_reason,
-    isCreatedByUser: message.isCreatedByUser,
-    latestMessageId: latestMessage?.messageId,
+    latestMessage,
   });
   if (!conversation) {
     return null;
@@ -64,34 +60,8 @@ export default function HoverButtons({
 
   const { isCreatedByUser, error } = message;
 
-  const renderRegenerate = () => {
-    if (!regenerateEnabled) {
-      return null;
-    }
-    return (
-      <button
-        className={cn(
-          'hover-button active rounded-md p-1 hover:bg-gray-100 hover:text-gray-500 focus:opacity-100 dark:text-gray-400/70 dark:hover:bg-gray-700 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400 md:invisible md:group-hover:visible md:group-[.final-completion]:visible',
-          !isLast ? 'md:opacity-0 md:group-hover:opacity-100' : '',
-        )}
-        onClick={regenerate}
-        type="button"
-        title={localize('com_ui_regenerate')}
-      >
-        <RegenerateIcon
-          className="hover:text-gray-500 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400"
-          size="19"
-        />
-      </button>
-    );
-  };
-
-  if (error === true) {
-    return (
-      <div className="visible mt-0 flex justify-center gap-1 self-end text-gray-500 lg:justify-start">
-        {renderRegenerate()}
-      </div>
-    );
+  if (error) {
+    return null;
   }
 
   const onEdit = () => {
@@ -109,14 +79,11 @@ export default function HoverButtons({
           messageId={message.messageId}
           content={message.content ?? message.text}
           isLast={isLast}
-          className={cn(
-            'ml-0 flex items-center gap-1.5 rounded-md p-1 text-xs hover:bg-gray-100 hover:text-gray-500 focus:opacity-100 dark:text-gray-400/70 dark:hover:bg-gray-700 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400 md:group-hover:visible md:group-[.final-completion]:visible',
-          )}
+          className="hover-button rounded-md p-1 pl-0 text-gray-500 hover:bg-gray-100 hover:text-gray-500 dark:text-gray-400/70 dark:hover:bg-gray-700 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400 md:group-hover:visible md:group-[.final-completion]:visible"
         />
       )}
       {isEditableEndpoint && (
         <button
-          id={`edit-${message.messageId}`}
           className={cn(
             'hover-button rounded-md p-1 hover:bg-gray-100 hover:text-gray-500 focus:opacity-100 dark:text-gray-400/70 dark:hover:bg-gray-700 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400 md:group-hover:visible md:group-[.final-completion]:visible',
             isCreatedByUser ? '' : 'active',
@@ -146,13 +113,28 @@ export default function HoverButtons({
       >
         {isCopied ? <CheckMark className="h-[18px] w-[18px]" /> : <Clipboard size="19" />}
       </button>
-      {renderRegenerate()}
+      {regenerateEnabled ? (
+        <button
+          className={cn(
+            'hover-button active rounded-md p-1 hover:bg-gray-100 hover:text-gray-500 focus:opacity-100 dark:text-gray-400/70 dark:hover:bg-gray-700 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400 md:invisible md:group-hover:visible md:group-[.final-completion]:visible',
+            !isLast ? 'md:opacity-0 md:group-hover:opacity-100' : '',
+          )}
+          onClick={regenerate}
+          type="button"
+          title={localize('com_ui_regenerate')}
+        >
+          <RegenerateIcon
+            className="hover:text-gray-500 dark:hover:text-gray-200 disabled:dark:hover:text-gray-400"
+            size="19"
+          />
+        </button>
+      ) : null}
       <Fork
         isLast={isLast}
         messageId={message.messageId}
         conversationId={conversation.conversationId}
         forkingSupported={forkingSupported}
-        latestMessageId={latestMessage?.messageId}
+        latestMessage={latestMessage}
       />
       {continueSupported === true ? (
         <button

@@ -183,12 +183,7 @@ const Registration: React.FC = () => {
                 disabled={Object.keys(errors).length > 0}
                 type="submit"
                 aria-label="Submit registration"
-                className="
-            w-full rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white
-            transition-colors hover:bg-green-700 focus:outline-none focus:ring-2
-            focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50
-            disabled:hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700
-          "
+                className="btn-primary w-full transform rounded-2xl px-4 py-3 tracking-wide transition-colors duration-200"
               >
                 {isSubmitting ? <Spinner /> : localize('com_auth_continue')}
               </button>
@@ -197,11 +192,7 @@ const Registration: React.FC = () => {
 
           <p className="my-4 text-center text-sm font-light text-gray-700 dark:text-white">
             {localize('com_auth_already_have_account')}{' '}
-            <a
-              href="/login"
-              aria-label="Login"
-              className="inline-flex p-1 text-sm font-medium text-green-600 transition-colors hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
-            >
+            <a href="/login" aria-label="Login" className="p-1 text-green-500">
               {localize('com_auth_login')}
             </a>
           </p>

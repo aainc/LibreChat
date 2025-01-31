@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import type { PluggableList } from 'unified';
 import { code, codeNoExecution, a, p } from './Markdown';
-import { CodeBlockProvider, ArtifactProvider } from '~/Providers';
+import { CodeBlockProvider } from '~/Providers';
 import { langSubset } from '~/utils';
 
 const MarkdownLite = memo(
@@ -25,32 +25,30 @@ const MarkdownLite = memo(
     ];
 
     return (
-      <ArtifactProvider>
-        <CodeBlockProvider>
-          <ReactMarkdown
-            remarkPlugins={[
-              /** @ts-ignore */
-              supersub,
-              remarkGfm,
-              [remarkMath, { singleDollarTextMath: true }],
-            ]}
+      <CodeBlockProvider>
+        <ReactMarkdown
+          remarkPlugins={[
             /** @ts-ignore */
-            rehypePlugins={rehypePlugins}
-            // linkTarget="_new"
-            components={
-              {
-                code: codeExecution ? code : codeNoExecution,
-                a,
-                p,
-              } as {
-                [nodeType: string]: React.ElementType;
-              }
+            supersub,
+            remarkGfm,
+            [remarkMath, { singleDollarTextMath: true }],
+          ]}
+          /** @ts-ignore */
+          rehypePlugins={rehypePlugins}
+          // linkTarget="_new"
+          components={
+            {
+              code: codeExecution ? code : codeNoExecution,
+              a,
+              p,
+            } as {
+              [nodeType: string]: React.ElementType;
             }
-          >
-            {content}
-          </ReactMarkdown>
-        </CodeBlockProvider>
-      </ArtifactProvider>
+          }
+        >
+          {content}
+        </ReactMarkdown>
+      </CodeBlockProvider>
     );
   },
 );

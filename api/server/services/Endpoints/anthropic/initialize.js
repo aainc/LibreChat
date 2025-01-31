@@ -20,7 +20,7 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
     checkUserKeyExpiry(expiresAt, EModelEndpoint.anthropic);
   }
 
-  let clientOptions = {};
+  const clientOptions = {};
 
   /** @type {undefined | TBaseEndpoint} */
   const anthropicConfig = req.app.locals[EModelEndpoint.anthropic];
@@ -36,7 +36,7 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
   }
 
   if (optionsOnly) {
-    clientOptions = Object.assign(
+    const requestOptions = Object.assign(
       {
         reverseProxyUrl: ANTHROPIC_REVERSE_PROXY ?? null,
         proxy: PROXY ?? null,
@@ -45,9 +45,9 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
       clientOptions,
     );
     if (overrideModel) {
-      clientOptions.modelOptions.model = overrideModel;
+      requestOptions.modelOptions.model = overrideModel;
     }
-    return getLLMConfig(anthropicApiKey, clientOptions);
+    return getLLMConfig(anthropicApiKey, requestOptions);
   }
 
   const client = new AnthropicClient(anthropicApiKey, {

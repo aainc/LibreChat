@@ -116,7 +116,7 @@ export default function useChatHelpers(index = 0, paramId?: string) {
 
   const handleRegenerate = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    const parentMessageId = latestMessage?.parentMessageId ?? '';
+    const parentMessageId = latestMessage?.parentMessageId;
     if (!parentMessageId) {
       console.error('Failed to regenerate the message: parentMessageId not found.');
       return;
@@ -130,6 +130,9 @@ export default function useChatHelpers(index = 0, paramId?: string) {
     setSiblingIdx(0);
   };
 
+  const [showBingToneSetting, setShowBingToneSetting] = useRecoilState(
+    store.showBingToneSettingFamily(index),
+  );
   const [showPopover, setShowPopover] = useRecoilState(store.showPopoverFamily(index));
   const [abortScroll, setAbortScroll] = useRecoilState(store.abortScrollFamily(index));
   const [preset, setPreset] = useRecoilState(store.presetByIndex(index));
@@ -163,6 +166,8 @@ export default function useChatHelpers(index = 0, paramId?: string) {
     setShowPopover,
     abortScroll,
     setAbortScroll,
+    showBingToneSetting,
+    setShowBingToneSetting,
     preset,
     setPreset,
     optionSettings,

@@ -12,7 +12,6 @@ const initAnthropic = require('~/server/services/Endpoints/anthropic/initialize'
 const getBedrockOptions = require('~/server/services/Endpoints/bedrock/options');
 const initOpenAI = require('~/server/services/Endpoints/openAI/initialize');
 const initCustom = require('~/server/services/Endpoints/custom/initialize');
-const initGoogle = require('~/server/services/Endpoints/google/initialize');
 const { getCustomEndpointConfig } = require('~/server/services/Config');
 const { loadAgentTools } = require('~/server/services/ToolService');
 const AgentClient = require('~/server/controllers/agents/client');
@@ -25,7 +24,6 @@ const providerConfigMap = {
   [EModelEndpoint.azureOpenAI]: initOpenAI,
   [EModelEndpoint.anthropic]: initAnthropic,
   [EModelEndpoint.bedrock]: getBedrockOptions,
-  [EModelEndpoint.google]: initGoogle,
   [Providers.OLLAMA]: initCustom,
 };
 
@@ -117,10 +115,6 @@ const initializeAgentOptions = async ({
     overrideModel: agent.model,
     endpointOption: _endpointOption,
   });
-
-  if (options.provider != null) {
-    agent.provider = options.provider;
-  }
 
   agent.model_parameters = Object.assign(model_parameters, options.llmConfig);
   if (options.configOptions) {
@@ -225,7 +219,6 @@ const initializeClient = async ({ req, res, endpointOption }) => {
     collectedUsage,
     artifactPromises,
     spec: endpointOption.spec,
-    iconURL: endpointOption.iconURL,
     agentConfigs,
     endpoint: EModelEndpoint.agents,
     maxContextTokens: primaryConfig.maxContextTokens,

@@ -1,11 +1,12 @@
 import { EModelEndpoint } from 'librechat-data-provider';
-import type { IconMapProps, AgentIconMapProps, IconsRecord } from '~/common';
+import type { IconMapProps, AgentIconMapProps } from '~/common';
 import { Feather } from 'lucide-react';
 import {
   MinimalPlugin,
   GPTIcon,
   AnthropicIcon,
   AzureMinimalIcon,
+  BingAIMinimalIcon,
   GoogleMinimalIcon,
   CustomMinimalIcon,
   AssistantIcon,
@@ -41,7 +42,7 @@ const AssistantAvatar = ({
 };
 
 const AgentAvatar = ({ className = '', avatar = '', agentName, size }: AgentIconMapProps) => {
-  if (agentName != null && agentName && avatar) {
+  if (agentName && avatar) {
     return (
       <img
         src={avatar}
@@ -60,13 +61,14 @@ const Bedrock = ({ className = '' }: IconMapProps) => {
   return <BedrockIcon className={cn(className, 'h-full w-full')} />;
 };
 
-export const icons: IconsRecord = {
+export const icons = {
   [EModelEndpoint.azureOpenAI]: AzureMinimalIcon,
   [EModelEndpoint.openAI]: GPTIcon,
   [EModelEndpoint.gptPlugins]: MinimalPlugin,
   [EModelEndpoint.anthropic]: AnthropicIcon,
   [EModelEndpoint.chatGPTBrowser]: LightningIcon,
   [EModelEndpoint.google]: GoogleMinimalIcon,
+  [EModelEndpoint.bingAI]: BingAIMinimalIcon,
   [EModelEndpoint.custom]: CustomMinimalIcon,
   [EModelEndpoint.assistants]: AssistantAvatar,
   [EModelEndpoint.azureAssistants]: AssistantAvatar,

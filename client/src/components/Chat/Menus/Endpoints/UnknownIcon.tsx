@@ -1,4 +1,3 @@
-import { memo } from 'react';
 import { EModelEndpoint, KnownEndpoints } from 'librechat-data-provider';
 import { CustomMinimalIcon } from '~/components/svg';
 import { IconContext } from '~/common';
@@ -54,7 +53,7 @@ const getKnownClass = ({
   return cn(match, defaultClass);
 };
 
-function UnknownIcon({
+export default function UnknownIcon({
   className = '',
   endpoint: _endpoint,
   iconURL = '',
@@ -94,5 +93,3 @@ function UnknownIcon({
     />
   );
 }
-
-export default memo(UnknownIcon);

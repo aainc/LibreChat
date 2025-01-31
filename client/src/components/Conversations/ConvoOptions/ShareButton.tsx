@@ -1,101 +1,96 @@
 import React, { useState, useEffect } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import { Copy, CopyCheck } from 'lucide-react';
-import { useGetSharedLinkQuery } from 'librechat-data-provider/react-query';
+import { OGDialog } from '~/components/ui';
+import { useToastContext } from '~/Providers';
+import type { TSharedLink } from 'librechat-data-provider';
+import { useCreateSharedLinkMutation } from '~/data-provider';
 import OGDialogTemplate from '~/components/ui/OGDialogTemplate';
-import { useLocalize, useCopyToClipboard } from '~/hooks';
-import { Button, Spinner, OGDialog } from '~/components';
 import SharedLinkButton from './SharedLinkButton';
-import { cn } from '~/utils';
+import { NotificationSeverity } from '~/common';
+import { Spinner } from '~/components/svg';
+import { useLocalize } from '~/hooks';
 
 export default function ShareButton({
   conversationId,
-  open,
-  onOpenChange,
-  triggerRef,
-  children,
+  title,
+  showShareDialog,
+  setShowShareDialog,
 }: {
   conversationId: string;
-  open: boolean;
-  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
-  triggerRef?: React.RefObject<HTMLButtonElement>;
-  children?: React.ReactNode;
+  title: string;
+  showShareDialog: boolean;
+  setShowShareDialog: (value: boolean) => void;
 }) {
   const localize = useLocalize();
-  const [showQR, setShowQR] = useState(false);
-  const [sharedLink, setSharedLink] = useState('');
-  const [isCopying, setIsCopying] = useState(false);
-  const { data: share, isLoading } = useGetSharedLinkQuery(conversationId);
-  const copyLink = useCopyToClipboard({ text: sharedLink });
+  const { showToast } = useToastContext();
+  const { mutate, isLoading } = useCreateSharedLinkMutation();
+  const [share, setShare] = useState<TSharedLink | null>(null);
+  const [isUpdated, setIsUpdated] = useState(false);
+  const [isNewSharedLink, setIsNewSharedLink] = useState(false);
 
   useEffect(() => {
-    if (share?.shareId !== undefined) {
-      const link = `${window.location.protocol}//${window.location.host}/share/${share.shareId}`;
-      setSharedLink(link);
+    if (isLoading || share) {
+      return;
     }
-  }, [share]);
+    const data = {
+      conversationId,
+      title,
+      isAnonymous: true,
+    };
 
-  const button =
-    isLoading === true ? null : (
-      <SharedLinkButton
-        share={share}
-        conversationId={conversationId}
-        setShareDialogOpen={onOpenChange}
-        showQR={showQR}
-        setShowQR={setShowQR}
-        setSharedLink={setSharedLink}
-      />
-    );
+    mutate(data, {
+      onSuccess: (result) => {
+        setShare(result);
+        setIsNewSharedLink(!result.isPublic);
+      },
+      onError: () => {
+        showToast({
+          message: localize('com_ui_share_error'),
+          severity: NotificationSeverity.ERROR,
+          showIcon: true,
+        });
+      },
+    });
 
-  const shareId = share?.shareId ?? '';
+    // mutation.mutate should only be called once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const buttons = share && (
+    <SharedLinkButton
+      share={share}
+      conversationId={conversationId}
+      setShare={setShare}
+      isUpdated={isUpdated}
+      setIsUpdated={setIsUpdated}
+    />
+  );
 
   return (
-    <OGDialog open={open} onOpenChange={onOpenChange} triggerRef={triggerRef}>
-      {children}
+    <OGDialog open={showShareDialog} onOpenChange={setShowShareDialog}>
       <OGDialogTemplate
-        buttons={button}
+        buttons={buttons}
         showCloseButton={true}
         showCancelButton={false}
         title={localize('com_ui_share_link_to_chat')}
         className="max-w-[550px]"
         main={
           <div>
-            <div className="h-full py-2 text-text-primary">
+            <div className="h-full py-2 text-gray-400 dark:text-gray-200">
               {(() => {
-                if (isLoading === true) {
+                if (isLoading) {
                   return <Spinner className="m-auto h-14 animate-spin" />;
                 }
 
-                return share?.success === true
+                if (isUpdated) {
+                  return isNewSharedLink
+                    ? localize('com_ui_share_created_message')
+                    : localize('com_ui_share_updated_message');
+                }
+
+                return share?.isPublic
                   ? localize('com_ui_share_update_message')
                   : localize('com_ui_share_create_message');
               })()}
-            </div>
-            <div className="relative items-center rounded-lg p-2">
-              {showQR && (
-                <div className="mb-4 flex flex-col items-center">
-                  <QRCodeSVG value={sharedLink} size={200} marginSize={2} className="rounded-2xl" />
-                </div>
-              )}
-
-              {shareId && (
-                <div className="flex items-center gap-2 rounded-md bg-surface-secondary p-2">
-                  <div className="flex-1 break-all text-sm text-text-secondary">{sharedLink}</div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (isCopying) {
-                        return;
-                      }
-                      copyLink(setIsCopying);
-                    }}
-                    className={cn('shrink-0', isCopying ? 'cursor-default' : '')}
-                  >
-                    {isCopying ? <CopyCheck className="size-4" /> : <Copy className="size-4" />}
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         }

@@ -1,12 +1,18 @@
 import React from 'react';
 import * as Ariakit from '@ariakit/react';
-import type * as t from '~/common';
 import { cn } from '~/utils';
 
 interface DropdownProps {
-  keyPrefix?: string;
   trigger: React.ReactNode;
-  items: t.MenuItemProps[];
+  items: {
+    label?: string;
+    onClick?: (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => void;
+    icon?: React.ReactNode;
+    kbd?: string;
+    show?: boolean;
+    disabled?: boolean;
+    separate?: boolean;
+  }[];
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   className?: string;
@@ -16,12 +22,10 @@ interface DropdownProps {
   anchor?: { x: string; y: string };
   gutter?: number;
   modal?: boolean;
-  focusLoop?: boolean;
   menuId: string;
 }
 
 const DropdownPopup: React.FC<DropdownProps> = ({
-  keyPrefix,
   trigger,
   items,
   isOpen,
@@ -31,11 +35,10 @@ const DropdownPopup: React.FC<DropdownProps> = ({
   gutter = 8,
   sameWidth,
   className,
-  focusLoop,
   iconClassName,
   itemClassName,
 }) => {
-  const menu = Ariakit.useMenuStore({ open: isOpen, setOpen: setIsOpen, focusLoop });
+  const menu = Ariakit.useMenuStore({ open: isOpen, setOpen: setIsOpen });
 
   return (
     <Ariakit.MenuProvider store={menu}>
@@ -49,29 +52,21 @@ const DropdownPopup: React.FC<DropdownProps> = ({
       >
         {items
           .filter((item) => item.show !== false)
-          .map((item, index) => {
-            if (item.separate === true) {
-              return <Ariakit.MenuSeparator key={index} className="my-1 h-px bg-white/10" />;
-            }
-            return (
+          .map((item, index) =>
+            item.separate === true ? (
+              <Ariakit.MenuSeparator key={index} className="my-1 h-px bg-white/10" />
+            ) : (
               <Ariakit.MenuItem
-                key={`${keyPrefix ?? ''}${index}`}
-                id={item.id}
+                key={index}
                 className={cn(
                   'group flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-3.5 text-sm text-text-primary outline-none transition-colors duration-200 hover:bg-surface-hover focus:bg-surface-hover md:px-2.5 md:py-2',
                   itemClassName,
                 )}
                 disabled={item.disabled}
-                render={item.render}
-                ref={item.ref}
-                hideOnClick={item.hideOnClick}
                 onClick={(event) => {
                   event.preventDefault();
                   if (item.onClick) {
                     item.onClick(event);
-                  }
-                  if (item.hideOnClick === false) {
-                    return;
                   }
                   menu.hide();
                 }}
@@ -88,8 +83,8 @@ const DropdownPopup: React.FC<DropdownProps> = ({
                   </kbd>
                 )}
               </Ariakit.MenuItem>
-            );
-          })}
+            ),
+          )}
       </Ariakit.Menu>
     </Ariakit.MenuProvider>
   );

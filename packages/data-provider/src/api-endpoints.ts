@@ -10,24 +10,14 @@ export const userPlugins = () => '/api/user/plugins';
 export const deleteUser = () => '/api/user/delete';
 
 export const messages = (conversationId: string, messageId?: string) =>
-  `/api/messages/${conversationId}${messageId != null && messageId ? `/${messageId}` : ''}`;
+  `/api/messages/${conversationId}${messageId ? `/${messageId}` : ''}`;
 
 const shareRoot = '/api/share';
 export const shareMessages = (shareId: string) => `${shareRoot}/${shareId}`;
-export const getSharedLink = (conversationId: string) => `${shareRoot}/link/${conversationId}`;
-export const getSharedLinks = (
-  pageSize: number,
-  isPublic: boolean,
-  sortBy: 'title' | 'createdAt',
-  sortDirection: 'asc' | 'desc',
-  search?: string,
-  cursor?: string,
-) =>
-  `${shareRoot}?pageSize=${pageSize}&isPublic=${isPublic}&sortBy=${sortBy}&sortDirection=${sortDirection}${
-    search ? `&search=${search}` : ''
-  }${cursor ? `&cursor=${cursor}` : ''}`;
-export const createSharedLink = (conversationId: string) => `${shareRoot}/${conversationId}`;
-export const updateSharedLink = (shareId: string) => `${shareRoot}/${shareId}`;
+export const getSharedLinks = (pageNumber: string, isPublic: boolean) =>
+  `${shareRoot}?pageNumber=${pageNumber}&isPublic=${isPublic}`;
+export const createSharedLink = shareRoot;
+export const updateSharedLink = shareRoot;
 
 const keysEndpoint = '/api/keys';
 

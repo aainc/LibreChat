@@ -2,9 +2,9 @@ import { useState, useRef } from 'react';
 import { Import } from 'lucide-react';
 import type { TError } from 'librechat-data-provider';
 import { useUploadConversationsMutation } from '~/data-provider';
+import { useLocalize, useConversations } from '~/hooks';
 import { useToastContext } from '~/Providers';
 import { Spinner } from '~/components/svg';
-import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
 function ImportConversations() {
@@ -15,9 +15,11 @@ function ImportConversations() {
   const [, setErrors] = useState<string[]>([]);
   const [allowImport, setAllowImport] = useState(true);
   const setError = (error: string) => setErrors((prevErrors) => [...prevErrors, error]);
+  const { refreshConversations } = useConversations();
 
   const uploadFile = useUploadConversationsMutation({
     onSuccess: () => {
+      refreshConversations();
       showToast({ message: localize('com_ui_import_conversation_success') });
       setAllowImport(true);
     },
@@ -27,7 +29,7 @@ function ImportConversations() {
       setError(
         (error as TError).response?.data?.message ?? 'An error occurred while uploading the file.',
       );
-      if (error?.toString().includes('Unsupported import type') === true) {
+      if (error?.toString().includes('Unsupported import type')) {
         showToast({
           message: localize('com_ui_import_conversation_file_type_error'),
           status: 'error',

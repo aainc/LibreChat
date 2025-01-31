@@ -6,6 +6,7 @@ import { ContentTypes } from './types/runs';
 import {
   openAISchema,
   googleSchema,
+  bingAISchema,
   EModelEndpoint,
   anthropicSchema,
   assistantSchema,
@@ -24,6 +25,7 @@ import { alternateName } from './config';
 type EndpointSchema =
   | typeof openAISchema
   | typeof googleSchema
+  | typeof bingAISchema
   | typeof anthropicSchema
   | typeof chatGPTBrowserSchema
   | typeof gptPluginsSchema
@@ -36,6 +38,7 @@ const endpointSchemas: Record<EModelEndpoint, EndpointSchema> = {
   [EModelEndpoint.azureOpenAI]: openAISchema,
   [EModelEndpoint.custom]: openAISchema,
   [EModelEndpoint.google]: googleSchema,
+  [EModelEndpoint.bingAI]: bingAISchema,
   [EModelEndpoint.anthropic]: anthropicSchema,
   [EModelEndpoint.chatGPTBrowser]: chatGPTBrowserSchema,
   [EModelEndpoint.gptPlugins]: gptPluginsSchema,
@@ -58,6 +61,7 @@ export function getEnabledEndpoints() {
     EModelEndpoint.azureAssistants,
     EModelEndpoint.azureOpenAI,
     EModelEndpoint.google,
+    EModelEndpoint.bingAI,
     EModelEndpoint.chatGPTBrowser,
     EModelEndpoint.gptPlugins,
     EModelEndpoint.anthropic,
@@ -179,7 +183,7 @@ export const parseConvo = ({
   possibleValues,
 }: {
   endpoint: EModelEndpoint;
-  endpointType?: EModelEndpoint | null;
+  endpointType?: EModelEndpoint;
   conversation: Partial<s.TConversation | s.TPreset> | null;
   possibleValues?: TPossibleValues;
   // TODO: POC for default schema
@@ -219,6 +223,7 @@ export const getResponseSender = (endpointOption: t.TEndpointOption): string => 
     modelDisplayLabel: _mdl,
     chatGptLabel: _cgl,
     modelLabel: _ml,
+    jailbreak,
   } = endpointOption;
 
   const model = _m ?? '';
@@ -252,6 +257,10 @@ export const getResponseSender = (endpointOption: t.TEndpointOption): string => 
     return (alternateName[endpoint] as string | undefined) ?? 'ChatGPT';
   }
 
+  if (endpoint === EModelEndpoint.bingAI) {
+    return jailbreak === true ? 'Sydney' : 'BingAI';
+  }
+
   if (endpoint === EModelEndpoint.anthropic) {
     return modelLabel || 'Claude';
   }
@@ -263,7 +272,7 @@ export const getResponseSender = (endpointOption: t.TEndpointOption): string => 
   if (endpoint === EModelEndpoint.google) {
     if (modelLabel) {
       return modelLabel;
-    } else if (model && (model.includes('gemini') || model.includes('learnlm'))) {
+    } else if (model && model.includes('gemini')) {
       return 'Gemini';
     } else if (model && model.includes('code')) {
       return 'Codey';
@@ -300,6 +309,7 @@ type CompactEndpointSchema =
   | typeof compactAssistantSchema
   | typeof compactAgentsSchema
   | typeof compactGoogleSchema
+  | typeof bingAISchema
   | typeof anthropicSchema
   | typeof compactChatGPTSchema
   | typeof bedrockInputSchema
@@ -314,6 +324,8 @@ const compactEndpointSchemas: Record<string, CompactEndpointSchema> = {
   [EModelEndpoint.agents]: compactAgentsSchema,
   [EModelEndpoint.google]: compactGoogleSchema,
   [EModelEndpoint.bedrock]: bedrockInputSchema,
+  /* BingAI needs all fields */
+  [EModelEndpoint.bingAI]: bingAISchema,
   [EModelEndpoint.anthropic]: anthropicSchema,
   [EModelEndpoint.chatGPTBrowser]: compactChatGPTSchema,
   [EModelEndpoint.gptPlugins]: compactPluginsSchema,
@@ -326,7 +338,7 @@ export const parseCompactConvo = ({
   possibleValues,
 }: {
   endpoint?: EModelEndpoint;
-  endpointType?: EModelEndpoint | null;
+  endpointType?: EModelEndpoint;
   conversation: Partial<s.TConversation | s.TPreset>;
   possibleValues?: TPossibleValues;
   // TODO: POC for default schema
@@ -336,7 +348,7 @@ export const parseCompactConvo = ({
     throw new Error(`undefined endpoint: ${endpoint}`);
   }
 
-  let schema = compactEndpointSchemas[endpoint] as CompactEndpointSchema | undefined;
+  let schema = compactEndpointSchemas[endpoint];
 
   if (!schema && !endpointType) {
     throw new Error(`Unknown endpoint: ${endpoint}`);
@@ -344,11 +356,7 @@ export const parseCompactConvo = ({
     schema = compactEndpointSchemas[endpointType];
   }
 
-  if (!schema) {
-    throw new Error(`Unknown endpointType: ${endpointType}`);
-  }
-
-  const convo = schema.parse(conversation) as s.TConversation | null;
+  const convo = schema.parse(conversation) as s.TConversation;
   // const { models, secondaryModels } = possibleValues ?? {};
   const { models } = possibleValues ?? {};
 

@@ -16,6 +16,7 @@ export default function TitleButton({ primaryText = '', secondaryText = '' }) {
         role="combobox"
         aria-haspopup="listbox"
         aria-controls="llm-endpoint-menu"
+        aria-activedescendant={isExpanded ? 'selected-endpoint' : undefined}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div>
