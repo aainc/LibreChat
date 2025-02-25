@@ -1,5 +1,4 @@
 const {
-  Session,
   Balance,
   getFiles,
   deleteFiles,
@@ -7,6 +6,7 @@ const {
   deletePresets,
   deleteMessages,
   deleteUserById,
+  deleteAllUserSessions,
 } = require('~/models');
 const User = require('~/models/User');
 const { updateUserPluginAuth, deleteUserPluginAuth } = require('~/server/services/PluginService');
@@ -19,7 +19,9 @@ const { Transaction } = require('~/models/Transaction');
 const { logger } = require('~/config');
 
 const getUserController = async (req, res) => {
-  res.status(200).send(req.user);
+  const userData = req.user.toObject != null ? req.user.toObject() : { ...req.user };
+  delete userData.totpSecret;
+  res.status(200).send(userData);
 };
 
 const getTermsStatusController = async (req, res) => {
@@ -112,7 +114,7 @@ const deleteUserController = async (req, res) => {
 
   try {
     await deleteMessages({ user: user.id }); // delete user messages
-    await Session.deleteMany({ user: user.id }); // delete user sessions
+    await deleteAllUserSessions({ userId: user.id }); // delete user sessions
     await Transaction.deleteMany({ user: user.id }); // delete user transactions
     await deleteUserKey({ userId: user.id, all: true }); // delete user keys
     await Balance.deleteMany({ user: user._id }); // delete user balances
