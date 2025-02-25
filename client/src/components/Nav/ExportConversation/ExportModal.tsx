@@ -10,11 +10,13 @@ export default function ExportModal({
   onOpenChange,
   conversation,
   triggerRef,
+  children,
 }: {
   open: boolean;
   conversation: TConversation | null;
-  onOpenChange: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLButtonElement>;
+  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
+  triggerRef?: React.RefObject<HTMLButtonElement>;
+  children?: React.ReactNode;
 }) {
   const localize = useLocalize();
 
@@ -34,7 +36,7 @@ export default function ExportModal({
   ];
 
   useEffect(() => {
-    if (!open && triggerRef.current) {
+    if (!open && triggerRef && triggerRef.current) {
       triggerRef.current.focus();
     }
   }, [open, triggerRef]);
@@ -70,6 +72,7 @@ export default function ExportModal({
 
   return (
     <OGDialog open={open} onOpenChange={onOpenChange} triggerRef={triggerRef}>
+      {children}
       <OGDialogTemplate
         title={localize('com_nav_export_conversation')}
         className="max-w-full sm:max-w-2xl"
@@ -91,7 +94,7 @@ export default function ExportModal({
                 <Label htmlFor="type" className="text-left text-sm font-medium">
                   {localize('com_nav_export_type')}
                 </Label>
-                <Dropdown value={type} onChange={_setType} options={typeOptions} />
+                <Dropdown value={type} onChange={_setType} options={typeOptions} portal={false} />
               </div>
             </div>
             <div className="grid w-full gap-6 sm:grid-cols-2">

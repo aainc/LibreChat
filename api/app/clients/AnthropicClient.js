@@ -1,6 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const { encoding_for_model: encodingForModel, get_encoding: getEncoding } = require('tiktoken');
 const {
   Constants,
   EModelEndpoint,
@@ -8,6 +7,7 @@ const {
   getResponseSender,
   validateVisionModel,
 } = require('librechat-data-provider');
+const { SplitStreamHandler, GraphEvents } = require('@librechat/agents');
 const { encodeAndFormat } = require('~/server/services/Files/images/encode');
 const {
   truncateText,
@@ -19,14 +19,13 @@ const {
 } = require('./prompts');
 const { getModelMaxTokens, getModelMaxOutputTokens, matchModelName } = require('~/utils');
 const { spendTokens, spendStructuredTokens } = require('~/models/spendTokens');
+const Tokenizer = require('~/server/services/Tokenizer');
+const { logger, sendEvent } = require('~/config');
 const { sleep } = require('~/server/utils');
 const BaseClient = require('./BaseClient');
-const { logger } = require('~/config');
 
 const HUMAN_PROMPT = '\n\nHuman:';
 const AI_PROMPT = '\n\nAssistant:';
-
-const tokenizersCache = {};
 
 /** Helper function to introduce a delay before retrying */
 function delayBeforeRetry(attempts, baseDelay = 1000) {
@@ -70,6 +69,8 @@ class AnthropicClient extends BaseClient {
     /** The key for the usage object's output tokens
      * @type {string} */
     this.outputTokensKey = 'output_tokens';
+    /** @type {SplitStreamHandler | undefined} */
+    this.streamHandler;
   }
 
   setOptions(options) {
@@ -127,7 +128,7 @@ class AnthropicClient extends BaseClient {
         this.options.endpointType ?? this.options.endpoint,
         this.options.endpointTokenConfig,
       ) ??
-      1500;
+      anthropicSettings.maxOutputTokens.reset(this.modelOptions.model);
     this.maxPromptTokens =
       this.options.maxPromptTokens || this.maxContextTokens - this.maxResponseTokens;
 
@@ -149,7 +150,6 @@ class AnthropicClient extends BaseClient {
 
     this.startToken = '||>';
     this.endToken = '';
-    this.gptEncoder = this.constructor.getTokenizer('cl100k_base');
 
     return this;
   }
@@ -181,6 +181,14 @@ class AnthropicClient extends BaseClient {
     ) {
       options.defaultHeaders = {
         'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15,prompt-caching-2024-07-31',
+      };
+    } else if (
+      this.supportsCacheControl &&
+      requestOptions?.model &&
+      requestOptions.model.includes('claude-3-7')
+    ) {
+      options.defaultHeaders = {
+        'anthropic-beta': 'output-128k-2025-02-19,prompt-caching-2024-07-31',
       };
     } else if (this.supportsCacheControl) {
       options.defaultHeaders = {
@@ -419,7 +427,7 @@ class AnthropicClient extends BaseClient {
     }
 
     let { context: messagesInWindow, remainingContextTokens } =
-      await this.getMessagesWithinTokenLimit(formattedMessages);
+      await this.getMessagesWithinTokenLimit({ messages: formattedMessages });
 
     const tokenCountMap = orderedMessages
       .slice(orderedMessages.length - messagesInWindow.length)
@@ -671,7 +679,7 @@ class AnthropicClient extends BaseClient {
    * @returns {Promise<Anthropic.default.Message | Anthropic.default.Completion>} The response from the Anthropic client.
    */
   async createResponse(client, options, useMessages) {
-    return useMessages ?? this.useMessages
+    return (useMessages ?? this.useMessages)
       ? await client.messages.create(options)
       : await client.completions.create(options);
   }
@@ -686,6 +694,7 @@ class AnthropicClient extends BaseClient {
       return false;
     }
     if (
+      modelMatch === 'claude-3-7-sonnet' ||
       modelMatch === 'claude-3-5-sonnet' ||
       modelMatch === 'claude-3-5-haiku' ||
       modelMatch === 'claude-3-haiku' ||
@@ -694,6 +703,35 @@ class AnthropicClient extends BaseClient {
       return true;
     }
     return false;
+  }
+
+  getMessageMapMethod() {
+    /**
+     * @param {TMessage} msg
+     */
+    return (msg) => {
+      if (msg.text != null && msg.text && msg.text.startsWith(':::thinking')) {
+        msg.text = msg.text.replace(/:::thinking.*?:::/gs, '').trim();
+      }
+
+      return msg;
+    };
+  }
+
+  /**
+   * @param {string[]} [intermediateReply]
+   * @returns {string}
+   */
+  getStreamText(intermediateReply) {
+    if (!this.streamHandler) {
+      return intermediateReply?.join('') ?? '';
+    }
+
+    const reasoningText = this.streamHandler.reasoningTokens.join('');
+
+    const reasoningBlock = reasoningText.length > 0 ? `:::thinking\n${reasoningText}\n:::\n` : '';
+
+    return `${reasoningBlock}${this.streamHandler.tokens.join('')}`;
   }
 
   async sendCompletion(payload, { onProgress, abortController }) {
@@ -713,7 +751,6 @@ class AnthropicClient extends BaseClient {
       user_id: this.user,
     };
 
-    let text = '';
     const {
       stream,
       model,
@@ -736,10 +773,46 @@ class AnthropicClient extends BaseClient {
 
     if (this.useMessages) {
       requestOptions.messages = payload;
-      requestOptions.max_tokens = maxOutputTokens || legacy.maxOutputTokens.default;
+      requestOptions.max_tokens =
+        maxOutputTokens || anthropicSettings.maxOutputTokens.reset(requestOptions.model);
     } else {
       requestOptions.prompt = payload;
-      requestOptions.max_tokens_to_sample = maxOutputTokens || 1500;
+      requestOptions.max_tokens_to_sample = maxOutputTokens || legacy.maxOutputTokens.default;
+    }
+
+    if (
+      this.options.thinking &&
+      requestOptions?.model &&
+      requestOptions.model.includes('claude-3-7')
+    ) {
+      requestOptions.thinking = {
+        type: 'enabled',
+      };
+    }
+    if (requestOptions.thinking != null && this.options.thinkingBudget != null) {
+      requestOptions.thinking = {
+        ...requestOptions.thinking,
+        budget_tokens: this.options.thinkingBudget,
+      };
+    }
+    if (
+      requestOptions.thinking != null &&
+      (requestOptions.max_tokens == null ||
+        requestOptions.thinking.budget_tokens > requestOptions.max_tokens)
+    ) {
+      const maxTokens = anthropicSettings.maxOutputTokens.reset(requestOptions.model);
+      requestOptions.max_tokens = requestOptions.max_tokens ?? maxTokens;
+
+      logger.warn(
+        requestOptions.max_tokens === maxTokens
+          ? '[AnthropicClient] max_tokens is not defined while thinking is enabled. Setting max_tokens to model default.'
+          : `[AnthropicClient] thinking budget_tokens (${requestOptions.thinking.budget_tokens}) exceeds max_tokens (${requestOptions.max_tokens}). Adjusting budget_tokens.`,
+      );
+
+      requestOptions.thinking.budget_tokens = Math.min(
+        requestOptions.thinking.budget_tokens,
+        Math.floor(requestOptions.max_tokens * 0.9),
+      );
     }
 
     if (this.systemMessage && this.supportsCacheControl === true) {
@@ -759,13 +832,17 @@ class AnthropicClient extends BaseClient {
     }
 
     logger.debug('[AnthropicClient]', { ...requestOptions });
+    this.streamHandler = new SplitStreamHandler({
+      accumulate: true,
+      runId: this.responseMessageId,
+      handlers: {
+        [GraphEvents.ON_RUN_STEP]: (event) => sendEvent(this.options.res, event),
+        [GraphEvents.ON_MESSAGE_DELTA]: (event) => sendEvent(this.options.res, event),
+        [GraphEvents.ON_REASONING_DELTA]: (event) => sendEvent(this.options.res, event),
+      },
+    });
 
-    const handleChunk = (currentChunk) => {
-      if (currentChunk) {
-        text += currentChunk;
-        onProgress(currentChunk);
-      }
-    };
+    let intermediateReply = this.streamHandler.tokens;
 
     const maxRetries = 3;
     const streamRate = this.options.streamRate ?? Constants.DEFAULT_STREAM_RATE;
@@ -785,6 +862,31 @@ class AnthropicClient extends BaseClient {
             }
           });
 
+          /** @param {string} chunk */
+          const handleChunk = (chunk) => {
+            this.streamHandler.handle({
+              choices: [
+                {
+                  delta: {
+                    content: chunk,
+                  },
+                },
+              ],
+            });
+          };
+          /** @param {string} chunk */
+          const handleReasoningChunk = (chunk) => {
+            this.streamHandler.handle({
+              choices: [
+                {
+                  delta: {
+                    reasoning_content: chunk,
+                  },
+                },
+              ],
+            });
+          };
+
           for await (const completion of response) {
             // Handle each completion as before
             const type = completion?.type ?? '';
@@ -792,7 +894,9 @@ class AnthropicClient extends BaseClient {
               logger.debug(`[AnthropicClient] ${type}`, completion);
               this[type] = completion;
             }
-            if (completion?.delta?.text) {
+            if (completion?.delta?.thinking) {
+              handleReasoningChunk(completion.delta.thinking);
+            } else if (completion?.delta?.text) {
               handleChunk(completion.delta.text);
             } else if (completion.completion) {
               handleChunk(completion.completion);
@@ -811,6 +915,10 @@ class AnthropicClient extends BaseClient {
 
           if (attempts < maxRetries) {
             await delayBeforeRetry(attempts, 350);
+          } else if (this.streamHandler && this.streamHandler.reasoningTokens.length) {
+            return this.getStreamText();
+          } else if (intermediateReply.length > 0) {
+            return this.getStreamText(intermediateReply);
           } else {
             throw new Error(`Operation failed after ${maxRetries} attempts: ${error.message}`);
           }
@@ -826,8 +934,7 @@ class AnthropicClient extends BaseClient {
     }
 
     await processResponse.bind(this)();
-
-    return text.trim();
+    return this.getStreamText(intermediateReply);
   }
 
   getSaveOptions() {
@@ -837,6 +944,8 @@ class AnthropicClient extends BaseClient {
       promptPrefix: this.options.promptPrefix,
       modelLabel: this.options.modelLabel,
       promptCache: this.options.promptCache,
+      thinking: this.options.thinking,
+      thinkingBudget: this.options.thinkingBudget,
       resendFiles: this.options.resendFiles,
       iconURL: this.options.iconURL,
       greeting: this.options.greeting,
@@ -849,22 +958,18 @@ class AnthropicClient extends BaseClient {
     logger.debug('AnthropicClient doesn\'t use getBuildMessagesOptions');
   }
 
-  static getTokenizer(encoding, isModelName = false, extendSpecialTokens = {}) {
-    if (tokenizersCache[encoding]) {
-      return tokenizersCache[encoding];
-    }
-    let tokenizer;
-    if (isModelName) {
-      tokenizer = encodingForModel(encoding, extendSpecialTokens);
-    } else {
-      tokenizer = getEncoding(encoding, extendSpecialTokens);
-    }
-    tokenizersCache[encoding] = tokenizer;
-    return tokenizer;
+  getEncoding() {
+    return 'cl100k_base';
   }
 
+  /**
+   * Returns the token count of a given text. It also checks and resets the tokenizers if necessary.
+   * @param {string} text - The text to get the token count for.
+   * @returns {number} The token count of the given text.
+   */
   getTokenCount(text) {
-    return this.gptEncoder.encode(text, 'all').length;
+    const encoding = this.getEncoding();
+    return Tokenizer.getTokenCount(text, encoding);
   }
 
   /**
