@@ -1328,6 +1328,7 @@ ${convo}
 
       intermediateReply = this.streamHandler.tokens;
 
+
       if (modelOptions.stream) {
         streamPromise = new Promise((resolve) => {
           streamResolve = resolve;
