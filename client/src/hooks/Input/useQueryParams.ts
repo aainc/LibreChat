@@ -68,147 +68,52 @@ export default function useQueryParams({
 }: {
   textAreaRef: React.RefObject<HTMLTextAreaElement>;
 }) {
-  const maxAttempts = 50;
-  const attemptsRef = useRef(0);
-  const processedRef = useRef(false);
-  const methods = useChatFormContext();
   const [searchParams] = useSearchParams();
-  const getDefaultConversation = useDefaultConvo();
-  const modularChat = useRecoilValue(store.modularChat);
-  const availableTools = useRecoilValue(store.availableTools);
-
-  const queryClient = useQueryClient();
-  const { conversation, newConversation } = useChatContext();
-
-  const newQueryConvo = useCallback(
-    (_newPreset?: TPreset) => {
-      if (!_newPreset) {
-        return;
-      }
-
-      const newPreset = removeUnavailableTools(_newPreset, availableTools);
-      let newEndpoint = newPreset.endpoint ?? '';
-      const endpointsConfig = queryClient.getQueryData<TEndpointsConfig>([QueryKeys.endpoints]);
-
-      if (newEndpoint && endpointsConfig && !endpointsConfig[newEndpoint]) {
-        const normalizedNewEndpoint = newEndpoint.toLowerCase();
-        for (const [key, value] of Object.entries(endpointsConfig)) {
-          if (
-            value &&
-            value.type === EModelEndpoint.custom &&
-            key.toLowerCase() === normalizedNewEndpoint
-          ) {
-            newEndpoint = key;
-            newPreset.endpoint = key;
-            newPreset.endpointType = EModelEndpoint.custom;
-            break;
-          }
-        }
-      }
-
-      const {
-        template,
-        shouldSwitch,
-        isNewModular,
-        newEndpointType,
-        isCurrentModular,
-        isExistingConversation,
-      } = getConvoSwitchLogic({
-        newEndpoint,
-        modularChat,
-        conversation,
-        endpointsConfig,
-      });
-
-      const isModular = isCurrentModular && isNewModular && shouldSwitch;
-      if (isExistingConversation && isModular) {
-        template.endpointType = newEndpointType as EModelEndpoint | undefined;
-
-        const currentConvo = getDefaultConversation({
-          /* target endpointType is necessary to avoid endpoint mixing */
-          conversation: { ...(conversation ?? {}), endpointType: template.endpointType },
-          preset: template,
-        });
-
-        /* We don't reset the latest message, only when changing settings mid-converstion */
-        newConversation({
-          template: currentConvo,
-          preset: newPreset,
-          keepLatestMessage: true,
-          keepAddedConvos: true,
-        });
-        return;
-      }
-
-      newConversation({ preset: newPreset, keepAddedConvos: true });
-    },
-    [
-      queryClient,
-      modularChat,
-      conversation,
-      availableTools,
-      newConversation,
-      getDefaultConversation,
-    ],
-  );
+  const methods = useChatFormContext();
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    const processQueryParams = () => {
-      const queryParams: Record<string, string> = {};
-      searchParams.forEach((value, key) => {
-        queryParams[key] = value;
-      });
-
-      const decodedPrompt = queryParams.prompt || '';
-      delete queryParams.prompt;
-      const validSettings = processValidSettings(queryParams);
-
-      return { decodedPrompt, validSettings };
-    };
-
-    const decodedPrompt = decodeURIComponent(promptParam);
-
-    const intervalId = setInterval(() => {
-      if (processedRef.current || attemptsRef.current >= maxAttempts) {
-        clearInterval(intervalId);
-        if (attemptsRef.current >= maxAttempts) {
-          console.warn('Max attempts reached, failed to process parameters');
-        }
+    try {
+      const prompt = searchParams.get('prompt');
+      
+      // プロンプトが存在しない場合は早期リターン
+      if (!prompt) {
         return;
       }
 
-      attemptsRef.current += 1;
-
+      // テキストエリアの参照が存在しない場合は早期リターン
       if (!textAreaRef.current) {
         return;
       }
-      const { decodedPrompt, validSettings } = processQueryParams();
-      const currentText = methods.getValues('text');
 
-      /** Clean up URL parameters after successful processing */
-      const success = () => {
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-        processedRef.current = true;
-        console.log('Parameters processed successfully');
-        clearInterval(intervalId);
-      };
-
-      if (!currentText && decodedPrompt) {
-        methods.setValue('text', decodedPrompt, { shouldValidate: true });
-        textAreaRef.current.focus();
-        textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
+      // テキストエリアの値を安全に設定
+      methods.setValue('text', prompt, { shouldValidate: true });
+      
+      // 前回のタイムアウトをクリア
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
 
-      if (Object.keys(validSettings).length > 0) {
-        newQueryConvo(validSettings);
-      }
+      // フォーカスとカーソル位置の設定を遅延させる
+      timeoutRef.current = setTimeout(() => {
+        if (textAreaRef.current) {
+          textAreaRef.current.focus();
+          textAreaRef.current.setSelectionRange(prompt.length, prompt.length);
+        }
+      }, 100);
 
-      success();
-    }, 100);
+      // URLからクエリパラメータを削除
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    } catch (error) {
+      console.error('Error in useQueryParams:', error);
+    }
 
+    // クリーンアップ関数
     return () => {
-      clearInterval(intervalId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [searchParams, methods, textAreaRef, newQueryConvo, newConversation]);
+  }, [searchParams, methods, textAreaRef]);
 }

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGetSharedMessages } from 'librechat-data-provider/react-query';
 import { useLocalize, useDocumentTitle } from '~/hooks';
@@ -8,6 +8,13 @@ import { Spinner } from '~/components/svg';
 import MessagesView from './MessagesView';
 import { buildTree } from '~/utils';
 import Footer from '../Chat/Footer';
+import { useRecoilValue } from 'recoil';
+import { DragDropWrapper } from '~/components/Chat/Input/Files';
+import { SidePanelGroup } from '~/components/SidePanel';
+import { EditorProvider } from '~/Providers';
+import Artifacts from '~/components/Artifacts/Artifacts';
+import store from '~/store';
+import { Files } from '~/components/Chat/Input/Files';
 
 function SharedView() {
   const localize = useLocalize();
@@ -16,6 +23,8 @@ function SharedView() {
   const { data, isLoading } = useGetSharedMessages(shareId ?? '');
   const dataTree = data && buildTree({ messages: data.messages });
   const messagesTree = dataTree?.length === 0 ? null : dataTree ?? null;
+  const artifacts = useRecoilValue(store.artifactsState);
+  const artifactsVisible = useRecoilValue(store.artifactsVisible);
 
   // configure document title
   let docTitle = '';
@@ -26,6 +35,11 @@ function SharedView() {
   }
 
   useDocumentTitle(docTitle);
+
+  const defaultLayout = useMemo(() => {
+    const resizableLayout = localStorage.getItem('react-resizable-panels:layout');
+    return typeof resizableLayout === 'string' ? JSON.parse(resizableLayout) : undefined;
+  }, []);
 
   let content: JSX.Element;
   if (isLoading) {
@@ -61,19 +75,25 @@ function SharedView() {
 
   return (
     <ShareContext.Provider value={{ isSharedConvo: true }}>
-      <main
-        className="relative flex w-full grow overflow-hidden dark:bg-surface-secondary"
-        style={{ paddingBottom: '50px' }}
-      >
-        <div className="transition-width relative flex h-full w-full flex-1 flex-col items-stretch overflow-hidden pt-0 dark:bg-surface-secondary">
-          <div className="flex h-full flex-col text-text-primary" role="presentation">
+      <DragDropWrapper className="relative flex w-full grow overflow-hidden bg-presentation">
+        <SidePanelGroup
+          defaultLayout={defaultLayout}
+          artifacts={
+            artifactsVisible === true && Object.keys(artifacts ?? {}).length > 0 ? (
+              <EditorProvider>
+                <Artifacts />
+              </EditorProvider>
+            ) : null
+          }
+        >
+          <main className="flex h-full flex-col overflow-y-auto" role="main">
             {content}
             <div className="w-full border-t-0 pl-0 pt-2 md:w-[calc(100%-.5rem)] md:border-t-0 md:border-transparent md:pl-0 md:pt-0 md:dark:border-transparent">
               <Footer className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-gradient-to-t from-surface-secondary to-transparent px-2 pb-2 pt-8 text-xs text-text-secondary md:px-[60px]" />
             </div>
-          </div>
-        </div>
-      </main>
+          </main>
+        </SidePanelGroup>
+      </DragDropWrapper>
     </ShareContext.Provider>
   );
 }

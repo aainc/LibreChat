@@ -8,7 +8,7 @@ RUN apk --no-cache add curl
 RUN mkdir -p /app && chown node:node /app
 WORKDIR /app
 
-USER node
+USER root
 
 COPY --chown=node:node . .
 

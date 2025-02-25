@@ -25,6 +25,18 @@ const AuthLayout = () => (
   </AuthContextProvider>
 );
 
+const routes = [
+  {
+    path: '/c/:conversationId?',
+    element: <ChatRoute />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: '/',
+    element: <Navigate to="/c/new" replace={true} />,
+  }
+];
+
 export const router = createBrowserRouter([
   {
     path: 'share/:shareId',
@@ -77,20 +89,7 @@ export const router = createBrowserRouter([
       {
         path: '/',
         element: <Root />,
-        children: [
-          {
-            index: true,
-            element: <Navigate to="/c/new" replace={true} />,
-          },
-          {
-            path: 'c/:conversationId?',
-            element: <ChatRoute />,
-          },
-          {
-            path: 'search',
-            element: <Search />,
-          },
-        ],
+        children: routes,
       },
     ],
   },
