@@ -9,11 +9,12 @@ import {
   tQueryParamsSchema,
   isAssistantsEndpoint,
 } from 'librechat-data-provider';
-import type { TPreset, TEndpointsConfig } from 'librechat-data-provider';
+import type { TPreset, TEndpointsConfig, TStartupConfig } from 'librechat-data-provider';
 import type { ZodAny } from 'zod';
-import { getConvoSwitchLogic, removeUnavailableTools } from '~/utils';
+import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools } from '~/utils';
 import useDefaultConvo from '~/hooks/Conversations/useDefaultConvo';
 import { useChatContext, useChatFormContext } from '~/Providers';
+import useSubmitMessage from '~/hooks/Messages/useSubmitMessage';
 import store from '~/store';
 
 const parseQueryValue = (value: string) => {
@@ -69,15 +70,136 @@ export default function useQueryParams({
   textAreaRef: React.RefObject<HTMLTextAreaElement>;
 }) {
   const [searchParams] = useSearchParams();
-  const methods = useChatFormContext();
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const getDefaultConversation = useDefaultConvo();
+  const modularChat = useRecoilValue(store.modularChat);
+  const availableTools = useRecoilValue(store.availableTools);
+  const { submitMessage } = useSubmitMessage();
+
+  const queryClient = useQueryClient();
+  const { conversation, newConversation } = useChatContext();
+
+  const newQueryConvo = useCallback(
+    (_newPreset?: TPreset) => {
+      if (!_newPreset) {
+        return;
+      }
+      let newPreset = removeUnavailableTools(_newPreset, availableTools);
+      if (newPreset.spec != null && newPreset.spec !== '') {
+        const startupConfig = queryClient.getQueryData<TStartupConfig>([QueryKeys.startupConfig]);
+        const modelSpecs = startupConfig?.modelSpecs?.list ?? [];
+        const spec = modelSpecs.find((s) => s.name === newPreset.spec);
+        if (!spec) {
+          return;
+        }
+        const { preset } = spec;
+        preset.iconURL = getModelSpecIconURL(spec);
+        preset.spec = spec.name;
+        newPreset = preset;
+      }
+
+      let newEndpoint = newPreset.endpoint ?? '';
+      const endpointsConfig = queryClient.getQueryData<TEndpointsConfig>([QueryKeys.endpoints]);
+
+      if (newEndpoint && endpointsConfig && !endpointsConfig[newEndpoint]) {
+        const normalizedNewEndpoint = newEndpoint.toLowerCase();
+        for (const [key, value] of Object.entries(endpointsConfig)) {
+          if (
+            value &&
+            value.type === EModelEndpoint.custom &&
+            key.toLowerCase() === normalizedNewEndpoint
+          ) {
+            newEndpoint = key;
+            newPreset.endpoint = key;
+            newPreset.endpointType = EModelEndpoint.custom;
+            break;
+          }
+        }
+      }
+
+      const {
+        template,
+        shouldSwitch,
+        isNewModular,
+        newEndpointType,
+        isCurrentModular,
+        isExistingConversation,
+      } = getConvoSwitchLogic({
+        newEndpoint,
+        modularChat,
+        conversation,
+        endpointsConfig,
+      });
+
+      let resetParams = {};
+      if (newPreset.spec == null) {
+        template.spec = null;
+        template.iconURL = null;
+        template.modelLabel = null;
+        resetParams = { spec: null, iconURL: null, modelLabel: null };
+        newPreset = { ...newPreset, ...resetParams };
+      }
+
+      const isModular = isCurrentModular && isNewModular && shouldSwitch;
+      if (isExistingConversation && isModular) {
+        template.endpointType = newEndpointType as EModelEndpoint | undefined;
+
+        const currentConvo = getDefaultConversation({
+          /* target endpointType is necessary to avoid endpoint mixing */
+          conversation: {
+            ...(conversation ?? {}),
+            endpointType: template.endpointType,
+            ...resetParams,
+          },
+          preset: template,
+          cleanOutput: newPreset.spec != null && newPreset.spec !== '',
+        });
+
+        /* We don't reset the latest message, only when changing settings mid-converstion */
+        newConversation({
+          template: currentConvo,
+          preset: newPreset,
+          keepLatestMessage: true,
+          keepAddedConvos: true,
+        });
+        return;
+      }
+
+      newConversation({ preset: newPreset, keepAddedConvos: true });
+    },
+    [
+      queryClient,
+      modularChat,
+      conversation,
+      availableTools,
+      newConversation,
+      getDefaultConversation,
+    ],
+  );
 
   useEffect(() => {
-    try {
-      const prompt = searchParams.get('prompt');
-      
-      // プロンプトが存在しない場合は早期リターン
-      if (!prompt) {
+    const processQueryParams = () => {
+      const queryParams: Record<string, string> = {};
+      searchParams.forEach((value, key) => {
+        queryParams[key] = value;
+      });
+
+      // Support both 'prompt' and 'q' as query parameters, with 'prompt' taking precedence
+      const decodedPrompt = queryParams.prompt || queryParams.q || '';
+      const shouldAutoSubmit = queryParams.submit?.toLowerCase() === 'true';
+      delete queryParams.prompt;
+      delete queryParams.q;
+      delete queryParams.submit;
+      const validSettings = processValidSettings(queryParams);
+
+      return { decodedPrompt, validSettings, shouldAutoSubmit };
+    };
+
+    const intervalId = setInterval(() => {
+      if (processedRef.current || attemptsRef.current >= maxAttempts) {
+        clearInterval(intervalId);
+        if (attemptsRef.current >= maxAttempts) {
+          console.warn('Max attempts reached, failed to process parameters');
+        }
         return;
       }
 
@@ -85,13 +207,35 @@ export default function useQueryParams({
       if (!textAreaRef.current) {
         return;
       }
+      const startupConfig = queryClient.getQueryData<TStartupConfig>([QueryKeys.startupConfig]);
+      if (!startupConfig) {
+        return;
+      }
+      const { decodedPrompt, validSettings, shouldAutoSubmit } = processQueryParams();
+      const currentText = methods.getValues('text');
 
-      // テキストエリアの値を安全に設定
-      methods.setValue('text', prompt, { shouldValidate: true });
-      
-      // 前回のタイムアウトをクリア
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      /** Clean up URL parameters after successful processing */
+      const success = () => {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        processedRef.current = true;
+        console.log('Parameters processed successfully');
+        clearInterval(intervalId);
+      };
+
+      if (!currentText && decodedPrompt) {
+        methods.setValue('text', decodedPrompt, { shouldValidate: true });
+        textAreaRef.current.focus();
+        textAreaRef.current.setSelectionRange(decodedPrompt.length, decodedPrompt.length);
+
+        // Auto-submit if the submit parameter is true
+        if (shouldAutoSubmit) {
+          methods.handleSubmit((data) => {
+            if (data.text?.trim()) {
+              submitMessage(data);
+            }
+          })();
+        }
       }
 
       // フォーカスとカーソル位置の設定を遅延させる
@@ -115,5 +259,5 @@ export default function useQueryParams({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [searchParams, methods, textAreaRef]);
+  }, [searchParams, methods, textAreaRef, newQueryConvo, newConversation, submitMessage]);
 }
