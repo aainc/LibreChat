@@ -23,6 +23,20 @@ export default function ChatRoute() {
   useHealthCheck();
   const { data: startupConfig } = useGetStartupConfig();
   const { isAuthenticated, user } = useAuthRedirect();
+  const { conversationId = '' } = useParams();
+  const [searchParams] = useSearchParams();
+  
+  // 初期化時のプロンプト処理を安全に行う
+  const initialPrompt = useMemo(() => {
+    try {
+      const prompt = searchParams.get('prompt');
+      return prompt ?? '';
+    } catch (error) {
+      console.error('Error getting prompt from searchParams:', error);
+      return '';
+    }
+  }, [searchParams]);
+
   const setIsTemporary = useRecoilCallback(
     ({ set }) =>
       (value: boolean) => {
@@ -33,7 +47,6 @@ export default function ChatRoute() {
   useAppStartup({ startupConfig, user });
 
   const index = 0;
-  const { conversationId = '' } = useParams();
 
   const { hasSetConversation, conversation } = store.useCreateConversationAtom(index);
   const { newConversation } = useNewConvo();
@@ -52,6 +65,18 @@ export default function ChatRoute() {
   });
   const endpointsQuery = useGetEndpointsQuery({ enabled: isAuthenticated });
   const assistantListMap = useAssistantListMap();
+
+  // 新規会話作成時のプロンプト設定
+  useEffect(() => {
+    if (conversationId === 'new' && initialPrompt && !hasSetConversation.current) {
+      try {
+        newConversation({ text: initialPrompt });
+        hasSetConversation.current = true;
+      } catch (error) {
+        console.error('Error creating new conversation:', error);
+      }
+    }
+  }, [conversationId, initialPrompt, newConversation, hasSetConversation]);
 
   useEffect(() => {
     const shouldSetConvo =

@@ -69,10 +69,6 @@ export default function useQueryParams({
 }: {
   textAreaRef: React.RefObject<HTMLTextAreaElement>;
 }) {
-  const maxAttempts = 50;
-  const attemptsRef = useRef(0);
-  const processedRef = useRef(false);
-  const methods = useChatFormContext();
   const [searchParams] = useSearchParams();
   const getDefaultConversation = useDefaultConvo();
   const modularChat = useRecoilValue(store.modularChat);
@@ -207,8 +203,7 @@ export default function useQueryParams({
         return;
       }
 
-      attemptsRef.current += 1;
-
+      // テキストエリアの参照が存在しない場合は早期リターン
       if (!textAreaRef.current) {
         return;
       }
@@ -243,15 +238,26 @@ export default function useQueryParams({
         }
       }
 
-      if (Object.keys(validSettings).length > 0) {
-        newQueryConvo(validSettings);
-      }
+      // フォーカスとカーソル位置の設定を遅延させる
+      timeoutRef.current = setTimeout(() => {
+        if (textAreaRef.current) {
+          textAreaRef.current.focus();
+          textAreaRef.current.setSelectionRange(prompt.length, prompt.length);
+        }
+      }, 100);
 
-      success();
-    }, 100);
+      // URLからクエリパラメータを削除
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    } catch (error) {
+      console.error('Error in useQueryParams:', error);
+    }
 
+    // クリーンアップ関数
     return () => {
-      clearInterval(intervalId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
   }, [searchParams, methods, textAreaRef, newQueryConvo, newConversation, submitMessage]);
 }

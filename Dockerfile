@@ -16,7 +16,7 @@ RUN uv --version
 RUN mkdir -p /app && chown node:node /app
 WORKDIR /app
 
-USER node
+USER root
 
 COPY --chown=node:node . .
 

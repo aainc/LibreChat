@@ -46,3 +46,33 @@ export const artifactsVisible = atom<boolean>({
     },
   ] as const,
 });
+
+export const sharedArtifactsState = atom<Record<string, Artifact | undefined> | null>({
+  key: 'sharedArtifactsState',
+  default: null,
+  effects: [
+    ({ onSet, node }) => {
+      onSet(async (newValue) => {
+        logger.log('artifacts', 'Recoil Effect: Setting sharedArtifactsState', {
+          key: node.key,
+          newValue,
+        });
+      });
+    },
+  ] as const,
+});
+
+export const sharedCurrentArtifactId = atom<string | null>({
+  key: 'sharedCurrentArtifactId',
+  default: null,
+  effects: [
+    ({ onSet, node }) => {
+      onSet(async (newValue) => {
+        logger.log('artifacts', 'Recoil Effect: Setting sharedCurrentArtifactId', {
+          key: node.key,
+          newValue,
+        });
+      });
+    },
+  ] as const,
+});

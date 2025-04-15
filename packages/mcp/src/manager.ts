@@ -85,7 +85,7 @@ export class MCPManager {
               if (tools.tools.length) {
                 this.logger.info(
                   `[MCP][${serverName}] Available tools: ${tools.tools
-                    .map((tool) => tool.name)
+                    .map((tool: { name: string }) => tool.name)
                     .join(', ')}`,
                 );
               }

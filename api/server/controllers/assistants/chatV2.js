@@ -32,6 +32,8 @@ const { getModelMaxTokens } = require('~/utils');
 const { getOpenAIClient } = require('./helpers');
 const { logger } = require('~/config');
 
+const ten_minutes = 1000 * 60 * 10;
+
 /**
  * @route POST /
  * @desc Chat with an assistant
@@ -57,7 +59,6 @@ const chatV2 = async (req, res) => {
     messageId: _messageId,
     conversationId: convoId,
     parentMessageId: _parentId = Constants.NO_PARENT,
-    clientTimestamp,
   } = req.body;
 
   /** @type {OpenAIClient} */
@@ -187,14 +188,22 @@ const chatV2 = async (req, res) => {
     };
 
     /** @type {CreateRunBody | undefined} */
-    const body = createRunBody({
+    const body = {
       assistant_id,
       model,
-      promptPrefix,
-      instructions,
-      endpointOption,
-      clientTimestamp,
-    });
+    };
+
+    if (promptPrefix) {
+      body.additional_instructions = promptPrefix;
+    }
+
+    if (typeof endpointOption.artifactsPrompt === 'string' && endpointOption.artifactsPrompt) {
+      body.additional_instructions = `${body.additional_instructions ?? ''}\n${endpointOption.artifactsPrompt}`.trim();
+    }
+
+    if (instructions) {
+      body.instructions = instructions;
+    }
 
     const getRequestFileIds = async () => {
       let thread_file_ids = [];
@@ -354,7 +363,7 @@ const chatV2 = async (req, res) => {
         });
 
         run_id = run.id;
-        await cache.set(cacheKey, `${thread_id}:${run_id}`, Time.TEN_MINUTES);
+        await cache.set(cacheKey, `${thread_id}:${run_id}`, ten_minutes);
         sendInitialResponse();
 
         // todo: retry logic
@@ -365,7 +374,7 @@ const chatV2 = async (req, res) => {
       /** @type {{[AssistantStreamEvents.ThreadRunCreated]: (event: ThreadRunCreated) => Promise<void>}} */
       const handlers = {
         [AssistantStreamEvents.ThreadRunCreated]: async (event) => {
-          await cache.set(cacheKey, `${thread_id}:${event.data.id}`, Time.TEN_MINUTES);
+          await cache.set(cacheKey, `${thread_id}:${event.data.id}`, ten_minutes);
           run_id = event.data.id;
           sendInitialResponse();
         },
