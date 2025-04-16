@@ -5,12 +5,17 @@ const {
   ToolCallTypes,
   MessageContentTypes,
   AssistantStreamEvents,
+  RunStatus,
 } = require('librechat-data-provider');
 const { retrieveAndProcessFile } = require('~/server/services/Files/process');
 const { processRequiredActions } = require('~/server/services/ToolService');
 const { createOnProgress, sendMessage, sleep } = require('~/server/utils');
 const { processMessages } = require('~/server/services/Threads');
 const { logger } = require('~/config');
+const { StepToolCall, createId } = require('@librechat/agents');
+const { recordUsage } = require('~/server/services/ApiHelpers');
+const { redactMessage } = require('~/utils');
+const { CacheKeys, ImageVisionTool, imageGenTools } = require('~/config/loader/models');
 
 /**
  * Implements the StreamRunManager functionality for managing the streaming
@@ -555,7 +560,9 @@ class StreamRunManager {
     const { submit_tool_outputs } = run.required_action;
     const actions = submit_tool_outputs.tool_calls.map((item) => {
       const functionCall = item.function;
-      const args = JSON.parse(functionCall.arguments);
+      // JSON文字列を解析し、Unicodeエスケープシーケンスを元の文字に戻す
+      let argsStr = unescapeUnicode(functionCall.arguments);
+      const args = JSON.parse(argsStr);
       return {
         tool: functionCall.name,
         toolInput: args,
@@ -692,6 +699,13 @@ class StreamRunManager {
     });
     this.messages.push(message);
   }
+}
+
+// 追加：Unicodeエスケープシーケンスを元の文字に変換する関数
+function unescapeUnicode(str) {
+  return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, codePoint) => 
+    String.fromCodePoint(parseInt(codePoint, 16))
+  );
 }
 
 module.exports = StreamRunManager;

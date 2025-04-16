@@ -22,6 +22,13 @@ async function withTimeout(promise, timeoutMs, timeoutMessage) {
   }
 }
 
+// Unicodeエスケープシーケンスを元の文字に変換する関数
+function unescapeUnicode(str) {
+  return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, codePoint) => 
+    String.fromCodePoint(parseInt(codePoint, 16))
+  );
+}
+
 /**
  * Creates a run on a thread using the OpenAI API.
  *
@@ -241,7 +248,9 @@ async function _handleRun({ openai, run_id, thread_id }) {
     const { submit_tool_outputs } = run.required_action;
     submit_tool_outputs.tool_calls.forEach((item) => {
       const functionCall = item.function;
-      const args = JSON.parse(functionCall.arguments);
+      // JSON文字列を解析し、Unicodeエスケープシーケンスを元の文字に戻す
+      let argsStr = unescapeUnicode(functionCall.arguments);
+      const args = JSON.parse(argsStr);
       actions.push({
         tool: functionCall.name,
         toolInput: args,

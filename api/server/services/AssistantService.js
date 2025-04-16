@@ -17,6 +17,13 @@ const { processMessages } = require('~/server/services/Threads');
 const { TextStream } = require('~/app/clients');
 const { logger } = require('~/config');
 
+// Unicodeエスケープシーケンスを元の文字に変換する関数
+function unescapeUnicode(str) {
+  return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, codePoint) => 
+    String.fromCodePoint(parseInt(codePoint, 16))
+  );
+}
+
 /**
  * Sorts, processes, and flattens messages to a single string.
  *
@@ -423,7 +430,9 @@ async function runAssistant({
   const { submit_tool_outputs } = run.required_action;
   const actions = submit_tool_outputs.tool_calls.map((item) => {
     const functionCall = item.function;
-    const args = JSON.parse(functionCall.arguments);
+    // JSON文字列を解析し、Unicodeエスケープシーケンスを元の文字に戻す
+    let argsStr = unescapeUnicode(functionCall.arguments);
+    const args = JSON.parse(argsStr);
     return {
       tool: functionCall.name,
       toolInput: args,
