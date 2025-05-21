@@ -175,6 +175,7 @@ const loadTools = async ({
       const authValues = await loadAuthValues({ userId: user, authFields });
       return createYouTubeTools(authValues);
     },
+
     image_gen_oai: async (toolContextMap) => {
       const authFields = getAuthFields('image_gen_oai');
       const authValues = await loadAuthValues({ userId: user, authFields });
