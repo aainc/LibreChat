@@ -53,6 +53,10 @@ function anonymizeMessages(messages, newConvoId) {
       return null;
     }
 
+    if (!message.messageId || !message.conversationId) {
+      return null;
+    }
+
     const newMessageId = anonymizeMessageId(message.messageId);
     idMap.set(message.messageId, newMessageId);
 
@@ -77,6 +81,8 @@ function anonymizeMessages(messages, newConvoId) {
         ? anonymizeAssistantId(message.model)
         : message.model,
       attachments: anonymizedAttachments,
+      isCreatedByUser: message.isCreatedByUser ?? false,
+      text: message.text ?? '',
     };
   }).filter(Boolean);
 }
@@ -87,12 +93,17 @@ async function getSharedMessages(shareId) {
       .populate({
         path: 'messages',
         select: '-_id -__v -user',
+        options: { lean: true }
       })
       .select('-_id -__v -user')
       .lean();
 
     if (!share?.conversationId || !share.isPublic) {
       return null;
+    }
+
+    if (!share.messages || !Array.isArray(share.messages)) {
+      share.messages = [];
     }
 
     const newConvoId = anonymizeConvoId(share.conversationId);
