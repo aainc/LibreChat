@@ -49,16 +49,23 @@ function anonymizeMessages(messages, newConvoId) {
 
   const idMap = new Map();
   return messages.map((message) => {
+    if (!message || typeof message !== 'object') {
+      return null;
+    }
+
     const newMessageId = anonymizeMessageId(message.messageId);
     idMap.set(message.messageId, newMessageId);
 
     const anonymizedAttachments = message.attachments?.map((attachment) => {
+      if (!attachment || typeof attachment !== 'object') {
+        return null;
+      }
       return {
         ...attachment,
         messageId: newMessageId,
         conversationId: newConvoId,
       };
-    });
+    }).filter(Boolean);
 
     return {
       ...message,
@@ -71,7 +78,7 @@ function anonymizeMessages(messages, newConvoId) {
         : message.model,
       attachments: anonymizedAttachments,
     };
-  });
+  }).filter(Boolean);
 }
 
 async function getSharedMessages(shareId) {
