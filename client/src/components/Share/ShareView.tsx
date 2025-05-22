@@ -23,7 +23,8 @@ function SharedView() {
   
   // アーティファクト関連の状態を取得
   const artifacts = useRecoilValue(store.artifactsState);
-  const artifactsVisible = useRecoilValue(store.artifactsVisible);
+  const visibleArtifacts = useRecoilValue(store.visibleArtifacts);
+  const artifactsVisible = useRecoilValue(store.artifactsVisibility);
 
   // configure document title
   let docTitle = '';
@@ -81,7 +82,9 @@ function SharedView() {
   }
 
   // artifactsパネル専用のラッパー
-  const artifactsPanel = artifactsVisible === true && Object.keys(artifacts ?? {}).length > 0 ? (
+  // シェア画面では visibleArtifacts または artifacts のいずれかを使用
+  const availableArtifacts = visibleArtifacts || artifacts;
+  const artifactsPanel = artifactsVisible === true && Object.keys(availableArtifacts ?? {}).length > 0 ? (
     <div className="flex h-full max-h-screen flex-col overflow-hidden">
       <div className="flex-1 overflow-hidden">
         <EditorProvider>
