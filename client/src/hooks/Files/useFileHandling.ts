@@ -169,16 +169,53 @@ const useFileHandling = (params?: UseFileHandling) => {
     }
 
     if (isAgentsEndpoint(endpoint)) {
-      if (!agent_id) {
+      // Add debug log to see what's being sent
+      console.log('Agent file upload metadata:', {
+        agent_id,
+        additionalMetadata: params?.additionalMetadata,
+        tool_resource: extendedFile.tool_resource,
+        endpoint
+      });
+
+      // agent_id from additionalMetadata takes priority (used in agent builder)
+      if (params?.additionalMetadata?.agent_id) {
+        formData.append('agent_id', params.additionalMetadata.agent_id);
+        
+        // For file_search tool resource, explicitly set message_file to false
+        // This ensures the file is processed as an agent file, not a message attachment
+        if (params?.additionalMetadata?.tool_resource === 'file_search' || 
+            extendedFile.tool_resource === 'file_search') {
+          formData.append('message_file', 'false');
+        } else if (!params?.additionalMetadata?.tool_resource && !extendedFile.tool_resource) {
+          // If no tool resource, treat as message attachment
+          formData.append('message_file', 'true');
+        }
+      } 
+      // Use conversation agent_id as fallback (chat screen upload)
+      else if (conversation?.agent_id && formData.get('agent_id') == null) {
+        formData.append('agent_id', conversation.agent_id);
+        // Without an explicit tool resource, treat as message attachment
+        if (!extendedFile.tool_resource) {
+          formData.append('message_file', 'true');
+        }
+      }
+      // No agent_id, treat as message attachment
+      else if (!agent_id) {
         formData.append('message_file', 'true');
       }
-      const tool_resource = extendedFile.tool_resource;
+      
+      // Add tool_resource if available
+      const tool_resource = extendedFile.tool_resource || params?.additionalMetadata?.tool_resource;
       if (tool_resource != null) {
         formData.append('tool_resource', tool_resource);
       }
-      if (conversation?.agent_id != null && formData.get('agent_id') == null) {
-        formData.append('agent_id', conversation.agent_id);
-      }
+
+      // Final debug log to see what's being sent to the server
+      console.log('File upload request params:', {
+        agent_id: formData.get('agent_id'),
+        message_file: formData.get('message_file'),
+        tool_resource: formData.get('tool_resource')
+      });
     }
 
     if (!isAssistantsEndpoint(endpoint)) {

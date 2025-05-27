@@ -473,6 +473,11 @@ const processFileUpload = async ({ req, res, metadata }) => {
 const processAgentFileUpload = async ({ req, res, metadata }) => {
   const { file } = req;
   const { agent_id, tool_resource } = metadata;
+  
+  // Add debug logs to track the request metadata
+  logger.debug(`Agent file upload request: agent_id=${agent_id}, tool_resource=${tool_resource}, message_file=${metadata.message_file}`);
+  logger.debug(`Request body:`, req.body);
+  
   if (agent_id && !tool_resource) {
     throw new Error('No tool resource provided for agent file upload');
   }
@@ -482,6 +487,9 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
   }
 
   let messageAttachment = !!metadata.message_file;
+  // Add debug log for the messageAttachment flag
+  logger.debug(`messageAttachment flag: ${messageAttachment}, raw value: ${metadata.message_file}`);
+  
   if (!messageAttachment && !agent_id) {
     throw new Error('No agent ID provided for agent file upload');
   }
