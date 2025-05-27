@@ -608,8 +608,25 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     filepath = result.filepath;
   }
 
+  // For file_search tool resources, get or create a system user associated with the agent
+  // This allows any user who uses the agent to search these files
+  let ownerId = req.user.id;
+  
+  if (!messageAttachment && tool_resource === EToolResources.file_search) {
+    try {
+      const { getOrCreateAgentUser } = require('~/models/Agent');
+      // Get the system user for this agent
+      ownerId = await getOrCreateAgentUser(agent_id);
+      logger.debug(`Using system user ${ownerId} for agent ${agent_id} file ownership`);
+    } catch (error) {
+      logger.error(`Error getting agent system user: ${error.message}`);
+      // Fall back to using the uploading user as owner if system user creation fails
+      ownerId = req.user.id;
+    }
+  }
+
   const fileInfo = removeNullishValues({
-    user: req.user.id,
+    user: ownerId, // Use the system user or the original user
     file_id,
     temp_file_id,
     bytes,
@@ -617,7 +634,10 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     filename: filename ?? file.originalname,
     context: messageAttachment ? FileContext.message_attachment : FileContext.agents,
     model: messageAttachment ? undefined : req.body.model,
-    metadata: fileInfoMetadata,
+    metadata: {
+      ...fileInfoMetadata,
+      agent_id: (!messageAttachment && tool_resource === EToolResources.file_search) ? agent_id : undefined
+    },
     type: file.mimetype,
     embedded,
     source,

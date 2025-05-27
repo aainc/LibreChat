@@ -23,6 +23,10 @@ export enum SystemRoles {
    * The default user role
    */
   USER = 'USER',
+  /**
+   * The system user role for agents
+   */
+  AGENT_SYSTEM = 'AGENT_SYSTEM',
 }
 
 // The role schema now only needs to reference the permissions schema.
@@ -68,6 +72,17 @@ const defaultRolesSchema = z.object({
     name: z.literal(SystemRoles.USER),
     permissions: permissionsSchema,
   }),
+  [SystemRoles.AGENT_SYSTEM]: roleSchema.extend({
+    name: z.literal(SystemRoles.AGENT_SYSTEM),
+    permissions: permissionsSchema.extend({
+      [PermissionTypes.PROMPTS]: promptPermissionsSchema.extend({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
+      [PermissionTypes.AGENTS]: agentPermissionsSchema.extend({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
+    }),
+  }),
 });
 
 export const roleDefaults = defaultRolesSchema.parse({
@@ -104,6 +119,21 @@ export const roleDefaults = defaultRolesSchema.parse({
       [PermissionTypes.PROMPTS]: {},
       [PermissionTypes.BOOKMARKS]: {},
       [PermissionTypes.AGENTS]: {},
+      [PermissionTypes.MULTI_CONVO]: {},
+      [PermissionTypes.TEMPORARY_CHAT]: {},
+      [PermissionTypes.RUN_CODE]: {},
+    },
+  },
+  [SystemRoles.AGENT_SYSTEM]: {
+    name: SystemRoles.AGENT_SYSTEM,
+    permissions: {
+      [PermissionTypes.PROMPTS]: {
+        [Permissions.USE]: true,
+      },
+      [PermissionTypes.BOOKMARKS]: {},
+      [PermissionTypes.AGENTS]: {
+        [Permissions.USE]: true,
+      },
       [PermissionTypes.MULTI_CONVO]: {},
       [PermissionTypes.TEMPORARY_CHAT]: {},
       [PermissionTypes.RUN_CODE]: {},

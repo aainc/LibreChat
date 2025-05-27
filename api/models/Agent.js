@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const { agentSchema } = require('@librechat/data-schemas');
 const { SystemRoles, Tools } = require('librechat-data-provider');
 const { GLOBAL_PROJECT_NAME, EPHEMERAL_AGENT_ID, mcp_delimiter } =
@@ -11,6 +12,8 @@ const {
   removeAgentFromAllProjects,
 } = require('./Project');
 const getLogStores = require('~/cache/getLogStores');
+const User = require('./User');
+const { logger } = require('~/config');
 
 const Agent = mongoose.model('agent', agentSchema);
 
@@ -358,6 +361,55 @@ const updateAgentProjects = async ({ user, agentId, projectIds, removeProjectIds
   return await getAgent({ id: agentId });
 };
 
+/**
+ * Get or create a system user associated with an agent.
+ * This user will be the owner of files uploaded for the agent.
+ * 
+ * @param {string} agent_id - The ID of the agent
+ * @returns {Promise<mongoose.Types.ObjectId>} The MongoDB ObjectId of the system user
+ */
+const getOrCreateAgentUser = async (agent_id) => {
+  try {
+    // Get the agent
+    const agent = await Agent.findOne({ id: agent_id }).lean();
+    if (!agent) {
+      throw new Error(`Agent not found: ${agent_id}`);
+    }
+    
+    // If the agent already has a system user, return it
+    if (agent.system_user_id) {
+      return agent.system_user_id;
+    }
+    
+    // Create a system user for the agent
+    const agentName = agent.name || agent_id;
+    const systemUser = await User.create({
+      name: `Agent: ${agentName}`,
+      username: `agent_${agent_id.substring(0, 8)}`,
+      email: `agent-${agent_id}@system.local`,
+      // Generate a random secure password that won't be used (system user won't log in)
+      password: crypto.randomBytes(32).toString('hex'),
+      provider: 'system',
+      role: SystemRoles.AGENT_SYSTEM,
+      active: true,
+      // Mark this as a system user so it's clear it's not a real user
+      isSystem: true
+    });
+    
+    // Update the agent with the system user ID
+    await Agent.updateOne(
+      { id: agent_id },
+      { $set: { system_user_id: systemUser._id } }
+    );
+    
+    logger.info(`Created system user for agent ${agent_id}: ${systemUser._id}`);
+    return systemUser._id;
+  } catch (error) {
+    logger.error(`Error getting or creating agent system user: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports = {
   Agent,
   getAgent,
@@ -369,4 +421,5 @@ module.exports = {
   updateAgentProjects,
   addAgentResourceFile,
   removeAgentResourceFiles,
+  getOrCreateAgentUser,
 };

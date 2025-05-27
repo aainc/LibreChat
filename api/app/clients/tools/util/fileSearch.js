@@ -4,6 +4,7 @@ const { tool } = require('@langchain/core/tools');
 const { Tools, EToolResources } = require('librechat-data-provider');
 const { getFiles } = require('~/models/File');
 const { logger } = require('~/config');
+const { generateSystemUserToken } = require('~/server/services/Agents/auth');
 
 /**
  *
@@ -59,7 +60,26 @@ const createFileSearchTool = async ({ req, files, entity_id }) => {
       if (files.length === 0) {
         return 'No files to search. Instruct the user to add files for the search.';
       }
-      const jwtToken = req.headers.authorization.split(' ')[1];
+      
+      // Determine which JWT token to use
+      let jwtToken;
+      
+      // If entity_id (agent_id) is provided, generate a system user token
+      if (entity_id) {
+        try {
+          // Generate a token for the agent's system user
+          jwtToken = await generateSystemUserToken(entity_id);
+          logger.debug(`[${Tools.file_search}] Using system user token for entity_id: ${entity_id}`);
+        } catch (error) {
+          logger.error(`[${Tools.file_search}] Error generating system user token: ${error.message}`);
+          // Fall back to user token if system user token generation fails
+          jwtToken = req.headers.authorization.split(' ')[1];
+        }
+      } else {
+        // Use the user's token if no entity_id provided
+        jwtToken = req.headers.authorization.split(' ')[1];
+      }
+      
       if (!jwtToken) {
         return 'There was an error authenticating the file search request.';
       }
