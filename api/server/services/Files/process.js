@@ -608,8 +608,14 @@ const processAgentFileUpload = async ({ req, res, metadata }) => {
     filepath = result.filepath;
   }
 
+  // For file_search tool resources, set the agent as the owner instead of the user
+  // This allows any user who uses the agent to search these files
+  const owner = (!messageAttachment && tool_resource === EToolResources.file_search) 
+    ? agent_id 
+    : req.user.id;
+
   const fileInfo = removeNullishValues({
-    user: req.user.id,
+    user: owner, // Use owner instead of req.user.id
     file_id,
     temp_file_id,
     bytes,
