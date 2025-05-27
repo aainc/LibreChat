@@ -376,17 +376,40 @@ const getOrCreateAgentUser = async (agent_id) => {
       throw new Error(`Agent not found: ${agent_id}`);
     }
     
-    // If the agent already has a system user, return it
+    // If the agent already has a system user, verify it exists
     if (agent.system_user_id) {
-      return agent.system_user_id;
+      const existingUser = await User.findById(agent.system_user_id);
+      if (existingUser) {
+        return agent.system_user_id;
+      }
+      // If user doesn't exist, we'll create a new one below
     }
+    
+    // Generate base email from agent ID
+    const baseEmail = `agent-${agent_id}@system.local`;
+    
+    // Check if a user with this email already exists
+    const existingUserByEmail = await User.findOne({ email: baseEmail });
+    if (existingUserByEmail) {
+      // Associate this existing user with the agent
+      await Agent.updateOne(
+        { id: agent_id },
+        { $set: { system_user_id: existingUserByEmail._id } }
+      );
+      logger.info(`Associated existing system user ${existingUserByEmail._id} with agent ${agent_id}`);
+      return existingUserByEmail._id;
+    }
+    
+    // Create a unique email with random suffix to prevent collisions
+    const uniqueId = crypto.randomBytes(4).toString('hex');
+    const uniqueEmail = `agent-${agent_id}-${uniqueId}@system.local`;
     
     // Create a system user for the agent
     const agentName = agent.name || agent_id;
     const systemUser = await User.create({
       name: `Agent: ${agentName}`,
-      username: `agent_${agent_id.substring(0, 8)}`,
-      email: `agent-${agent_id}@system.local`,
+      username: `agent_${agent_id.substring(0, 8)}_${uniqueId}`,
+      email: uniqueEmail,
       // Generate a random secure password that won't be used (system user won't log in)
       password: crypto.randomBytes(32).toString('hex'),
       provider: 'system',

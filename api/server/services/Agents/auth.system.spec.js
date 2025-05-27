@@ -33,6 +33,8 @@ jest.mock('~/models/Agent', () => {
 // Mock User model
 jest.mock('~/models/User', () => {
   return {
+    findById: jest.fn().mockResolvedValue(null),
+    findOne: jest.fn().mockResolvedValue(null),
     create: jest.fn().mockResolvedValue({
       _id: 'mock-user-id',
       name: 'Agent System User',
