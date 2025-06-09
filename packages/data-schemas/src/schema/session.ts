@@ -1,5 +1,10 @@
-import mongoose, { Schema } from 'mongoose';
-import { ISession } from '~/types';
+import mongoose, { Schema, Document, Types } from 'mongoose';
+
+export interface ISession extends Document {
+  refreshTokenHash: string;
+  expiration: Date;
+  user: Types.ObjectId;
+}
 
 const sessionSchema: Schema<ISession> = new Schema({
   refreshTokenHash: {

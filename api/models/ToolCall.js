@@ -1,4 +1,6 @@
-const { ToolCall } = require('~/db/models');
+const mongoose = require('mongoose');
+const { toolCallSchema } = require('@librechat/data-schemas');
+const ToolCall = mongoose.model('ToolCall', toolCallSchema);
 
 /**
  * Create a new tool call

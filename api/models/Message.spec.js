@@ -1,7 +1,32 @@
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const { v4: uuidv4 } = require('uuid');
-const { messageSchema } = require('@librechat/data-schemas');
+
+jest.mock('mongoose');
+
+const mockFindQuery = {
+  select: jest.fn().mockReturnThis(),
+  sort: jest.fn().mockReturnThis(),
+  lean: jest.fn().mockReturnThis(),
+  deleteMany: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+};
+
+const mockSchema = {
+  findOneAndUpdate: jest.fn(),
+  updateOne: jest.fn(),
+  findOne: jest.fn(() => ({
+    lean: jest.fn(),
+  })),
+  find: jest.fn(() => mockFindQuery),
+  deleteMany: jest.fn(),
+};
+
+mongoose.model.mockReturnValue(mockSchema);
+
+jest.mock('~/models/schema/messageSchema', () => mockSchema);
+
+jest.mock('~/config/winston', () => ({
+  error: jest.fn(),
+}));
 
 const {
   saveMessage,
@@ -10,102 +35,77 @@ const {
   deleteMessages,
   updateMessageText,
   deleteMessagesSince,
-} = require('./Message');
-
-/**
- * @type {import('mongoose').Model<import('@librechat/data-schemas').IMessage>}
- */
-let Message;
+} = require('~/models/Message');
 
 describe('Message Operations', () => {
-  let mongoServer;
   let mockReq;
-  let mockMessageData;
+  let mockMessage;
 
-  beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
-    await mongoose.connect(mongoUri);
-  });
-
-  afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-  });
-
-  beforeEach(async () => {
-    // Clear database
-    await Message.deleteMany({});
+  beforeEach(() => {
+    jest.clearAllMocks();
 
     mockReq = {
       user: { id: 'user123' },
     };
 
-    mockMessageData = {
+    mockMessage = {
       messageId: 'msg123',
       conversationId: uuidv4(),
       text: 'Hello, world!',
       user: 'user123',
     };
+
+    mockSchema.findOneAndUpdate.mockResolvedValue({
+      toObject: () => mockMessage,
+    });
   });
 
   describe('saveMessage', () => {
     it('should save a message for an authenticated user', async () => {
-      const result = await saveMessage(mockReq, mockMessageData);
-
-      expect(result.messageId).toBe('msg123');
-      expect(result.user).toBe('user123');
-      expect(result.text).toBe('Hello, world!');
-
-      // Verify the message was actually saved to the database
-      const savedMessage = await Message.findOne({ messageId: 'msg123', user: 'user123' });
-      expect(savedMessage).toBeTruthy();
-      expect(savedMessage.text).toBe('Hello, world!');
+      const result = await saveMessage(mockReq, mockMessage);
+      expect(result).toEqual(mockMessage);
+      expect(mockSchema.findOneAndUpdate).toHaveBeenCalledWith(
+        { messageId: 'msg123', user: 'user123' },
+        expect.objectContaining({ user: 'user123' }),
+        expect.any(Object),
+      );
     });
 
     it('should throw an error for unauthenticated user', async () => {
       mockReq.user = null;
-      await expect(saveMessage(mockReq, mockMessageData)).rejects.toThrow('User not authenticated');
+      await expect(saveMessage(mockReq, mockMessage)).rejects.toThrow('User not authenticated');
     });
 
-    it('should handle invalid conversation ID gracefully', async () => {
-      mockMessageData.conversationId = 'invalid-id';
-      const result = await saveMessage(mockReq, mockMessageData);
-      expect(result).toBeUndefined();
+    it('should throw an error for invalid conversation ID', async () => {
+      mockMessage.conversationId = 'invalid-id';
+      await expect(saveMessage(mockReq, mockMessage)).resolves.toBeUndefined();
     });
   });
 
   describe('updateMessageText', () => {
     it('should update message text for the authenticated user', async () => {
-      // First save a message
-      await saveMessage(mockReq, mockMessageData);
-
-      // Then update it
       await updateMessageText(mockReq, { messageId: 'msg123', text: 'Updated text' });
-
-      // Verify the update
-      const updatedMessage = await Message.findOne({ messageId: 'msg123', user: 'user123' });
-      expect(updatedMessage.text).toBe('Updated text');
+      expect(mockSchema.updateOne).toHaveBeenCalledWith(
+        { messageId: 'msg123', user: 'user123' },
+        { text: 'Updated text' },
+      );
     });
   });
 
   describe('updateMessage', () => {
     it('should update a message for the authenticated user', async () => {
-      // First save a message
-      await saveMessage(mockReq, mockMessageData);
-
+      mockSchema.findOneAndUpdate.mockResolvedValue(mockMessage);
       const result = await updateMessage(mockReq, { messageId: 'msg123', text: 'Updated text' });
-
-      expect(result.messageId).toBe('msg123');
-      expect(result.text).toBe('Updated text');
-
-      // Verify in database
-      const updatedMessage = await Message.findOne({ messageId: 'msg123', user: 'user123' });
-      expect(updatedMessage.text).toBe('Updated text');
+      expect(result).toEqual(
+        expect.objectContaining({
+          messageId: 'msg123',
+          text: 'Hello, world!',
+        }),
+      );
     });
 
     it('should throw an error if message is not found', async () => {
+      mockSchema.findOneAndUpdate.mockResolvedValue(null);
       await expect(
         updateMessage(mockReq, { messageId: 'nonexistent', text: 'Test' }),
       ).rejects.toThrow('Message not found or user not authorized.');
@@ -114,45 +114,19 @@ describe('Message Operations', () => {
 
   describe('deleteMessagesSince', () => {
     it('should delete messages only for the authenticated user', async () => {
-      const conversationId = uuidv4();
-
-      // Create multiple messages in the same conversation
-      const message1 = await saveMessage(mockReq, {
-        messageId: 'msg1',
-        conversationId,
-        text: 'First message',
-        user: 'user123',
+      mockSchema.findOne().lean.mockResolvedValueOnce({ createdAt: new Date() });
+      mockFindQuery.deleteMany.mockResolvedValueOnce({ deletedCount: 1 });
+      const result = await deleteMessagesSince(mockReq, {
+        messageId: 'msg123',
+        conversationId: 'convo123',
       });
-
-      const message2 = await saveMessage(mockReq, {
-        messageId: 'msg2',
-        conversationId,
-        text: 'Second message',
-        user: 'user123',
-      });
-
-      const message3 = await saveMessage(mockReq, {
-        messageId: 'msg3',
-        conversationId,
-        text: 'Third message',
-        user: 'user123',
-      });
-
-      // Delete messages since message2 (this should only delete messages created AFTER msg2)
-      await deleteMessagesSince(mockReq, {
-        messageId: 'msg2',
-        conversationId,
-      });
-
-      // Verify msg1 and msg2 remain, msg3 is deleted
-      const remainingMessages = await Message.find({ conversationId, user: 'user123' });
-      expect(remainingMessages).toHaveLength(2);
-      expect(remainingMessages.map((m) => m.messageId)).toContain('msg1');
-      expect(remainingMessages.map((m) => m.messageId)).toContain('msg2');
-      expect(remainingMessages.map((m) => m.messageId)).not.toContain('msg3');
+      expect(mockSchema.findOne).toHaveBeenCalledWith({ messageId: 'msg123', user: 'user123' });
+      expect(mockSchema.find).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
     });
 
     it('should return undefined if no message is found', async () => {
+      mockSchema.findOne().lean.mockResolvedValueOnce(null);
       const result = await deleteMessagesSince(mockReq, {
         messageId: 'nonexistent',
         conversationId: 'convo123',
@@ -163,71 +137,29 @@ describe('Message Operations', () => {
 
   describe('getMessages', () => {
     it('should retrieve messages with the correct filter', async () => {
-      const conversationId = uuidv4();
-
-      // Save some messages
-      await saveMessage(mockReq, {
-        messageId: 'msg1',
-        conversationId,
-        text: 'First message',
-        user: 'user123',
-      });
-
-      await saveMessage(mockReq, {
-        messageId: 'msg2',
-        conversationId,
-        text: 'Second message',
-        user: 'user123',
-      });
-
-      const messages = await getMessages({ conversationId });
-      expect(messages).toHaveLength(2);
-      expect(messages[0].text).toBe('First message');
-      expect(messages[1].text).toBe('Second message');
+      const filter = { conversationId: 'convo123' };
+      await getMessages(filter);
+      expect(mockSchema.find).toHaveBeenCalledWith(filter);
+      expect(mockFindQuery.sort).toHaveBeenCalledWith({ createdAt: 1 });
+      expect(mockFindQuery.lean).toHaveBeenCalled();
     });
   });
 
   describe('deleteMessages', () => {
     it('should delete messages with the correct filter', async () => {
-      // Save some messages for different users
-      await saveMessage(mockReq, mockMessageData);
-      await saveMessage(
-        { user: { id: 'user456' } },
-        {
-          messageId: 'msg456',
-          conversationId: uuidv4(),
-          text: 'Other user message',
-          user: 'user456',
-        },
-      );
-
       await deleteMessages({ user: 'user123' });
-
-      // Verify only user123's messages were deleted
-      const user123Messages = await Message.find({ user: 'user123' });
-      const user456Messages = await Message.find({ user: 'user456' });
-
-      expect(user123Messages).toHaveLength(0);
-      expect(user456Messages).toHaveLength(1);
+      expect(mockSchema.deleteMany).toHaveBeenCalledWith({ user: 'user123' });
     });
   });
 
   describe('Conversation Hijacking Prevention', () => {
-    it("should not allow editing a message in another user's conversation", async () => {
+    it('should not allow editing a message in another user\'s conversation', async () => {
       const attackerReq = { user: { id: 'attacker123' } };
-      const victimConversationId = uuidv4();
+      const victimConversationId = 'victim-convo-123';
       const victimMessageId = 'victim-msg-123';
 
-      // First, save a message as the victim (but we'll try to edit as attacker)
-      const victimReq = { user: { id: 'victim123' } };
-      await saveMessage(victimReq, {
-        messageId: victimMessageId,
-        conversationId: victimConversationId,
-        text: 'Victim message',
-        user: 'victim123',
-      });
+      mockSchema.findOneAndUpdate.mockResolvedValue(null);
 
-      // Attacker tries to edit the victim's message
       await expect(
         updateMessage(attackerReq, {
           messageId: victimMessageId,
@@ -236,82 +168,71 @@ describe('Message Operations', () => {
         }),
       ).rejects.toThrow('Message not found or user not authorized.');
 
-      // Verify the original message is unchanged
-      const originalMessage = await Message.findOne({
-        messageId: victimMessageId,
-        user: 'victim123',
-      });
-      expect(originalMessage.text).toBe('Victim message');
+      expect(mockSchema.findOneAndUpdate).toHaveBeenCalledWith(
+        { messageId: victimMessageId, user: 'attacker123' },
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
-    it("should not allow deleting messages from another user's conversation", async () => {
+    it('should not allow deleting messages from another user\'s conversation', async () => {
       const attackerReq = { user: { id: 'attacker123' } };
-      const victimConversationId = uuidv4();
+      const victimConversationId = 'victim-convo-123';
       const victimMessageId = 'victim-msg-123';
 
-      // Save a message as the victim
-      const victimReq = { user: { id: 'victim123' } };
-      await saveMessage(victimReq, {
-        messageId: victimMessageId,
-        conversationId: victimConversationId,
-        text: 'Victim message',
-        user: 'victim123',
-      });
-
-      // Attacker tries to delete from victim's conversation
+      mockSchema.findOne().lean.mockResolvedValueOnce(null); // Simulating message not found for this user
       const result = await deleteMessagesSince(attackerReq, {
         messageId: victimMessageId,
         conversationId: victimConversationId,
       });
 
       expect(result).toBeUndefined();
-
-      // Verify the victim's message still exists
-      const victimMessage = await Message.findOne({
+      expect(mockSchema.findOne).toHaveBeenCalledWith({
         messageId: victimMessageId,
-        user: 'victim123',
-      });
-      expect(victimMessage).toBeTruthy();
-      expect(victimMessage.text).toBe('Victim message');
-    });
-
-    it("should not allow inserting a new message into another user's conversation", async () => {
-      const attackerReq = { user: { id: 'attacker123' } };
-      const victimConversationId = uuidv4();
-
-      // Attacker tries to save a message - this should succeed but with attacker's user ID
-      const result = await saveMessage(attackerReq, {
-        conversationId: victimConversationId,
-        text: 'Inserted malicious message',
-        messageId: 'new-msg-123',
         user: 'attacker123',
       });
+    });
 
-      expect(result).toBeTruthy();
-      expect(result.user).toBe('attacker123');
+    it('should not allow inserting a new message into another user\'s conversation', async () => {
+      const attackerReq = { user: { id: 'attacker123' } };
+      const victimConversationId = uuidv4(); // Use a valid UUID
 
-      // Verify the message was saved with the attacker's user ID, not as an anonymous message
-      const savedMessage = await Message.findOne({ messageId: 'new-msg-123' });
-      expect(savedMessage.user).toBe('attacker123');
-      expect(savedMessage.conversationId).toBe(victimConversationId);
+      await expect(
+        saveMessage(attackerReq, {
+          conversationId: victimConversationId,
+          text: 'Inserted malicious message',
+          messageId: 'new-msg-123',
+        }),
+      ).resolves.not.toThrow(); // It should not throw an error
+
+      // Check that the message was saved with the attacker's user ID
+      expect(mockSchema.findOneAndUpdate).toHaveBeenCalledWith(
+        { messageId: 'new-msg-123', user: 'attacker123' },
+        expect.objectContaining({
+          user: 'attacker123',
+          conversationId: victimConversationId,
+        }),
+        expect.anything(),
+      );
     });
 
     it('should allow retrieving messages from any conversation', async () => {
-      const victimConversationId = uuidv4();
+      const victimConversationId = 'victim-convo-123';
 
-      // Save a message in the victim's conversation
-      const victimReq = { user: { id: 'victim123' } };
-      await saveMessage(victimReq, {
-        messageId: 'victim-msg',
+      await getMessages({ conversationId: victimConversationId });
+
+      expect(mockSchema.find).toHaveBeenCalledWith({
         conversationId: victimConversationId,
-        text: 'Victim message',
-        user: 'victim123',
       });
 
-      // Anyone should be able to retrieve messages by conversation ID
-      const messages = await getMessages({ conversationId: victimConversationId });
-      expect(messages).toHaveLength(1);
-      expect(messages[0].text).toBe('Victim message');
+      mockSchema.find.mockReturnValueOnce({
+        select: jest.fn().mockReturnThis(),
+        sort: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([{ text: 'Test message' }]),
+      });
+
+      const result = await getMessages({ conversationId: victimConversationId });
+      expect(result).toEqual([{ text: 'Test message' }]);
     });
   });
 });

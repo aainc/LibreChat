@@ -1,7 +1,5 @@
-jest.mock('~/models', () => ({
-  initializeRoles: jest.fn(),
-}));
 jest.mock('~/models/Role', () => ({
+  initializeRoles: jest.fn(),
   updateAccessPermissions: jest.fn(),
   getRoleByName: jest.fn(),
   updateRoleByName: jest.fn(),
@@ -27,7 +25,6 @@ jest.mock('./start/checks', () => ({
   checkHealth: jest.fn(),
   checkConfig: jest.fn(),
   checkAzureVariables: jest.fn(),
-  checkWebSearchConfig: jest.fn(),
 }));
 
 const AppService = require('./AppService');

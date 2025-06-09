@@ -17,10 +17,18 @@ export const getPresetTitle = (preset: TPreset, mention?: boolean) => {
   let title = '';
   let label = '';
 
-  if (modelLabel) {
-    label = modelLabel;
-  }
+  const usesChatGPTLabel: TEndpoints = [
+    EModelEndpoint.azureOpenAI,
+    EModelEndpoint.openAI,
+    EModelEndpoint.custom,
+  ];
+  const usesModelLabel: TEndpoints = [EModelEndpoint.google, EModelEndpoint.anthropic];
 
+  if (endpoint != null && endpoint && usesChatGPTLabel.includes(endpoint)) {
+    label = chatGptLabel ?? '';
+  } else if (endpoint != null && endpoint && usesModelLabel.includes(endpoint)) {
+    label = modelLabel ?? '';
+  }
   if (
     label &&
     presetTitle != null &&
@@ -39,13 +47,13 @@ export const getPresetTitle = (preset: TPreset, mention?: boolean) => {
     }${
       tools
         ? ` | ${tools
-            .map((tool: TPlugin | string) => {
-              if (typeof tool === 'string') {
-                return tool;
-              }
-              return tool.pluginKey;
-            })
-            .join(', ')}`
+          .map((tool: TPlugin | string) => {
+            if (typeof tool === 'string') {
+              return tool;
+            }
+            return tool.pluginKey;
+          })
+          .join(', ')}`
         : ''
     }`;
   }

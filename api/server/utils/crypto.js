@@ -106,6 +106,12 @@ function decryptV3(encryptedValue) {
   return decrypted.toString('utf8');
 }
 
+async function hashToken(str) {
+  const data = new TextEncoder().encode(str);
+  const hashBuffer = await webcrypto.subtle.digest('SHA-256', data);
+  return Buffer.from(hashBuffer).toString('hex');
+}
+
 async function getRandomValues(length) {
   if (!Number.isInteger(length) || length <= 0) {
     throw new Error('Length must be a positive integer');
@@ -135,6 +141,7 @@ module.exports = {
   decryptV2,
   encryptV3,
   decryptV3,
+  hashToken,
   hashBackupCode,
   getRandomValues,
 };

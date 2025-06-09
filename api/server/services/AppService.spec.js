@@ -24,10 +24,8 @@ jest.mock('./Config/loadCustomConfig', () => {
 jest.mock('./Files/Firebase/initialize', () => ({
   initializeFirebase: jest.fn(),
 }));
-jest.mock('~/models', () => ({
-  initializeRoles: jest.fn(),
-}));
 jest.mock('~/models/Role', () => ({
+  initializeRoles: jest.fn(),
   updateAccessPermissions: jest.fn(),
 }));
 jest.mock('./ToolService', () => ({
@@ -143,14 +141,6 @@ describe('AppService', () => {
       balance: { enabled: true },
       filteredTools: undefined,
       includedTools: undefined,
-      webSearch: {
-        cohereApiKey: '${COHERE_API_KEY}',
-        firecrawlApiKey: '${FIRECRAWL_API_KEY}',
-        firecrawlApiUrl: '${FIRECRAWL_API_URL}',
-        jinaApiKey: '${JINA_API_KEY}',
-        safeSearch: 1,
-        serperApiKey: '${SERPER_API_KEY}',
-      },
     });
   });
 
@@ -547,7 +537,7 @@ describe('AppService updating app.locals and issuing warnings', () => {
     const { logger } = require('~/config');
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "The 'assistants' endpoint has both 'supportedIds' and 'excludedIds' defined.",
+        'The \'assistants\' endpoint has both \'supportedIds\' and \'excludedIds\' defined.',
       ),
     );
   });
@@ -569,7 +559,7 @@ describe('AppService updating app.locals and issuing warnings', () => {
     const { logger } = require('~/config');
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining(
-        "The 'assistants' endpoint has both 'privateAssistants' and 'supportedIds' or 'excludedIds' defined.",
+        'The \'assistants\' endpoint has both \'privateAssistants\' and \'supportedIds\' or \'excludedIds\' defined.',
       ),
     );
   });

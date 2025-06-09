@@ -52,9 +52,8 @@ bower_components/
 *.d.ts
 !vite-env.d.ts
 
-# AI
+# Cline
 .clineignore
-.cursor
 
 # Floobits
 .floo
@@ -122,5 +121,3 @@ helm/**/.values.yaml
 
 !/client/src/@types/i18next.d.ts
 
-# SAML Idp cert
-*.cert

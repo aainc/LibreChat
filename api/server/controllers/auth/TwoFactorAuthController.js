@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
-const { logger } = require('@librechat/data-schemas');
 const {
   verifyTOTP,
-  getTOTPSecret,
   verifyBackupCode,
+  getTOTPSecret,
 } = require('~/server/services/twoFactorService');
 const { setAuthTokens } = require('~/server/services/AuthService');
-const { getUserById } = require('~/models');
+const { getUserById } = require('~/models/userMethods');
+const { logger } = require('~/config');
 
 /**
  * Verifies the 2FA code during login using a temporary token.

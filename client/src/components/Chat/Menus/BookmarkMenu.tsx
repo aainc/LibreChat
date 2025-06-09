@@ -157,9 +157,8 @@ const BookmarkMenu: FC = () => {
   return (
     <BookmarkContext.Provider value={{ bookmarks: data || [] }}>
       <DropdownPopup
-        portal={true}
-        menuId={menuId}
         focusLoop={true}
+        menuId={menuId}
         isOpen={isMenuOpen}
         unmountOnHide={true}
         setIsOpen={setIsMenuOpen}

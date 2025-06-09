@@ -1,5 +1,4 @@
 import {
-  useRef,
   useMemo,
   useState,
   useEffect,
@@ -7,10 +6,10 @@ import {
   useContext,
   useCallback,
   createContext,
+  useRef,
 } from 'react';
-import { debounce } from 'lodash';
-import { useRecoilState } from 'recoil';
 import { useNavigate } from 'react-router-dom';
+import { useRecoilState } from 'recoil';
 import { setTokenHeader, SystemRoles } from 'librechat-data-provider';
 import type * as t from 'librechat-data-provider';
 import {
@@ -48,31 +47,27 @@ const AuthContextProvider = ({
 
   const navigate = useNavigate();
 
-  const setUserContext = useMemo(
-    () =>
-      debounce((userContext: TUserContext) => {
-        const { token, isAuthenticated, user, redirect } = userContext;
-        setUser(user);
-        setToken(token);
-        //@ts-ignore - ok for token to be undefined initially
-        setTokenHeader(token);
-        setIsAuthenticated(isAuthenticated);
-
-        // Use a custom redirect if set
-        const finalRedirect = logoutRedirectRef.current || redirect;
-        // Clear the stored redirect
-        logoutRedirectRef.current = undefined;
-
-        if (finalRedirect == null) {
-          return;
-        }
-
-        if (finalRedirect.startsWith('http://') || finalRedirect.startsWith('https://')) {
-          window.location.href = finalRedirect;
-        } else {
-          navigate(finalRedirect, { replace: true });
-        }
-      }, 50),
+  const setUserContext = useCallback(
+    (userContext: TUserContext) => {
+      const { token, isAuthenticated, user, redirect } = userContext;
+      setUser(user);
+      setToken(token);
+      //@ts-ignore - ok for token to be undefined initially
+      setTokenHeader(token);
+      setIsAuthenticated(isAuthenticated);
+      // Use a custom redirect if set
+      const finalRedirect = logoutRedirectRef.current || redirect;
+      // Clear the stored redirect
+      logoutRedirectRef.current = undefined;
+      if (finalRedirect == null) {
+        return;
+      }
+      if (finalRedirect.startsWith('http://') || finalRedirect.startsWith('https://')) {
+        window.location.href = finalRedirect;
+      } else {
+        navigate(finalRedirect, { replace: true });
+      }
+    },
     [navigate, setUser],
   );
   const doSetError = useTimeout({ callback: (error) => setError(error as string | undefined) });

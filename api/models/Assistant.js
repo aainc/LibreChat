@@ -1,4 +1,7 @@
-const { Assistant } = require('~/db/models');
+const mongoose = require('mongoose');
+const { assistantSchema } = require('@librechat/data-schemas');
+
+const Assistant = mongoose.model('assistant', assistantSchema);
 
 /**
  * Update an assistant with new data without overwriting existing properties,

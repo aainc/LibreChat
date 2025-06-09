@@ -3,7 +3,6 @@ import type { ApiKeyFormData } from '~/common';
 import OGDialogTemplate from '~/components/ui/OGDialogTemplate';
 import { Input, Button, OGDialog } from '~/components/ui';
 import { useLocalize } from '~/hooks';
-import type { RefObject } from 'react';
 
 export default function ApiKeyDialog({
   isOpen,
@@ -14,7 +13,6 @@ export default function ApiKeyDialog({
   isToolAuthenticated,
   register,
   handleSubmit,
-  triggerRef,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,7 +22,6 @@ export default function ApiKeyDialog({
   isToolAuthenticated: boolean;
   register: UseFormRegister<ApiKeyFormData>;
   handleSubmit: UseFormHandleSubmit<ApiKeyFormData>;
-  triggerRef?: RefObject<HTMLInputElement>;
 }) {
   const localize = useLocalize();
   const languageIcons = [
@@ -41,7 +38,7 @@ export default function ApiKeyDialog({
   ];
 
   return (
-    <OGDialog open={isOpen} onOpenChange={onOpenChange} triggerRef={triggerRef}>
+    <OGDialog open={isOpen} onOpenChange={onOpenChange}>
       <OGDialogTemplate
         className="w-11/12 sm:w-[450px]"
         title=""

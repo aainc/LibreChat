@@ -140,6 +140,9 @@ function disposeClient(client) {
     if (client.useMessages !== undefined) {
       client.useMessages = null;
     }
+    if (client.isLegacyOutput !== undefined) {
+      client.isLegacyOutput = null;
+    }
     if (client.supportsCacheControl !== undefined) {
       client.supportsCacheControl = null;
     }

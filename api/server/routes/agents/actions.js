@@ -107,15 +107,7 @@ router.post('/:agent_id', async (req, res) => {
       .filter((tool) => !(tool && (tool.includes(domain) || tool.includes(action_id))))
       .concat(functions.map((tool) => `${tool.function.name}${actionDelimiter}${domain}`));
 
-    // Force version update since actions are changing
-    const updatedAgent = await updateAgent(
-      agentQuery,
-      { tools, actions },
-      {
-        updatingUserId: req.user.id,
-        forceVersion: true,
-      },
-    );
+    const updatedAgent = await updateAgent(agentQuery, { tools, actions });
 
     // Only update user field for new actions
     const actionUpdateData = { metadata, agent_id };
@@ -180,12 +172,7 @@ router.delete('/:agent_id/:action_id', async (req, res) => {
 
     const updatedTools = tools.filter((tool) => !(tool && tool.includes(domain)));
 
-    // Force version update since actions are being removed
-    await updateAgent(
-      agentQuery,
-      { tools: updatedTools, actions: updatedActions },
-      { updatingUserId: req.user.id, forceVersion: true },
-    );
+    await updateAgent(agentQuery, { tools: updatedTools, actions: updatedActions });
     // If admin, can delete any action, otherwise only user's actions
     const actionQuery = admin ? { action_id } : { action_id, user: req.user.id };
     await deleteAction(actionQuery);

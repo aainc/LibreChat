@@ -74,6 +74,9 @@ class AnthropicClient extends BaseClient {
     /** Whether to use Messages API or Completions API
      * @type {boolean} */
     this.useMessages;
+    /** Whether or not the model is limited to the legacy amount of output tokens
+     * @type {boolean} */
+    this.isLegacyOutput;
     /** Whether or not the model supports Prompt Caching
      * @type {boolean} */
     this.supportsCacheControl;
@@ -115,16 +118,13 @@ class AnthropicClient extends BaseClient {
     const modelMatch = matchModelName(this.modelOptions.model, EModelEndpoint.anthropic);
     this.isClaudeLatest =
       /claude-[3-9]/.test(modelMatch) || /claude-(?:sonnet|opus|haiku)-[4-9]/.test(modelMatch);
-    const isLegacyOutput = !(
-      /claude-3[-.]5-sonnet/.test(modelMatch) ||
-      /claude-3[-.]7/.test(modelMatch) ||
-      /claude-(?:sonnet|opus|haiku)-[4-9]/.test(modelMatch) ||
-      /claude-[4-9]/.test(modelMatch)
+    this.isLegacyOutput = !(
+      /claude-3[-.]5-sonnet/.test(modelMatch) || /claude-3[-.]7/.test(modelMatch)
     );
     this.supportsCacheControl = this.options.promptCache && checkPromptCacheSupport(modelMatch);
 
     if (
-      isLegacyOutput &&
+      this.isLegacyOutput &&
       this.modelOptions.maxOutputTokens &&
       this.modelOptions.maxOutputTokens > legacy.maxOutputTokens.default
     ) {

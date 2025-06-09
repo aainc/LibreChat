@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { logger } = require('@librechat/data-schemas');
 const { resizeImageBuffer } = require('../images/resize');
-const { updateUser, updateFile } = require('~/models');
+const { updateUser } = require('~/models/userMethods');
+const { updateFile } = require('~/models/File');
+const { logger } = require('~/config');
 const { saveBufferToAzure } = require('./crud');
 
 /**
@@ -97,14 +98,10 @@ async function prepareAzureImageURL(req, file) {
  */
 async function processAzureAvatar({ buffer, userId, manual, basePath = 'images', containerName }) {
   try {
-    const metadata = await sharp(buffer).metadata();
-    const extension = metadata.format === 'gif' ? 'gif' : 'png';
-    const fileName = `avatar.${extension}`;
-
     const downloadURL = await saveBufferToAzure({
       userId,
       buffer,
-      fileName,
+      fileName: 'avatar.png',
       basePath,
       containerName,
     });

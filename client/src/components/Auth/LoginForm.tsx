@@ -5,7 +5,6 @@ import type { TLoginUser, TStartupConfig } from 'librechat-data-provider';
 import type { TAuthContext } from '~/common';
 import { useResendVerificationEmail, useGetStartupConfig } from '~/data-provider';
 import { ThemeContext, useLocalize } from '~/hooks';
-import { Spinner, Button } from '~/components';
 
 type TLoginFormProps = {
   onSubmit: (data: TLoginUser) => void;
@@ -17,11 +16,12 @@ type TLoginFormProps = {
 const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, setError }) => {
   const localize = useLocalize();
   const { theme } = useContext(ThemeContext);
+
   const {
     register,
     getValues,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<TLoginUser>();
   const [showResendLink, setShowResendLink] = useState<boolean>(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -166,16 +166,15 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
         )}
 
         <div className="mt-6">
-          <Button
+          <button
             aria-label={localize('com_auth_continue')}
             data-testid="login-button"
             type="submit"
-            disabled={(requireCaptcha && !turnstileToken) || isSubmitting}
-            variant="submit"
-            className="h-12 w-full rounded-2xl"
+            disabled={requireCaptcha && !turnstileToken}
+            className="w-full rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50 disabled:hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
           >
-            {isSubmitting ? <Spinner /> : localize('com_auth_continue')}
-          </Button>
+            {localize('com_auth_continue')}
+          </button>
         </div>
       </form>
     </>

@@ -3,13 +3,14 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const { spendTokens, spendStructuredTokens } = require('./spendTokens');
 const { getBalanceConfig } = require('~/server/services/Config');
 const { getMultiplier, getCacheMultiplier } = require('./tx');
-const { createTransaction } = require('./Transaction');
-const { Balance } = require('~/db/models');
+const { Transaction } = require('./Transaction');
+const Balance = require('./Balance');
 
 // Mock the custom config module so we can control the balance flag.
 jest.mock('~/server/services/Config');
 
 let mongoServer;
+
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
@@ -367,7 +368,7 @@ describe('NaN Handling Tests', () => {
     };
 
     // Act
-    const result = await createTransaction(txData);
+    const result = await Transaction.create(txData);
 
     // Assert: No transaction should be created and balance remains unchanged.
     expect(result).toBeUndefined();

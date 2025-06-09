@@ -1,5 +1,15 @@
-import { Schema } from 'mongoose';
-import { IToken } from '~/types';
+import { Schema, Document, Types } from 'mongoose';
+
+export interface IToken extends Document {
+  userId: Types.ObjectId;
+  email?: string;
+  type?: string;
+  identifier?: string;
+  token: string;
+  createdAt: Date;
+  expiresAt: Date;
+  metadata?: Map<string, unknown>;
+}
 
 const tokenSchema: Schema<IToken> = new Schema({
   userId: {
