@@ -10,9 +10,7 @@ import type {
   TConversationTag,
   TBanner,
 } from './schemas';
-import { TMinimalFeedback } from './feedback';
 import { SettingDefinition } from './generate';
-
 export type TOpenAIMessage = OpenAI.Chat.ChatCompletionMessageParam;
 
 export * from './schemas';
@@ -46,7 +44,6 @@ export type TEndpointOption = {
 
 export type TEphemeralAgent = {
   mcp?: string[];
-  web_search?: boolean;
   execute_code?: boolean;
 };
 
@@ -82,7 +79,7 @@ export type EventSubmission = Omit<TSubmission, 'initialResponse'> & { initialRe
 export type TPluginAction = {
   pluginKey: string;
   action: 'install' | 'uninstall';
-  auth?: Partial<Record<string, string>>;
+  auth?: unknown;
   isEntityTool?: boolean;
 };
 
@@ -92,7 +89,7 @@ export type TUpdateUserPlugins = {
   isEntityTool?: boolean;
   pluginKey: string;
   action: string;
-  auth?: Partial<Record<string, string | null>>;
+  auth?: unknown;
 };
 
 // TODO `label` needs to be changed to the proper `TranslationKeys`
@@ -548,23 +545,3 @@ export type TAcceptTermsResponse = {
 };
 
 export type TBannerResponse = TBanner | null;
-
-export type TUpdateFeedbackRequest = {
-  feedback?: TMinimalFeedback;
-};
-
-export type TUpdateFeedbackResponse = {
-  messageId: string;
-  conversationId: string;
-  feedback?: TMinimalFeedback;
-}
-
-export type TBalanceResponse = {
-  tokenCredits: number;
-  // Automatic refill settings
-  autoRefillEnabled: boolean;
-  refillIntervalValue?: number;
-  refillIntervalUnit?: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
-  lastRefill?: Date;
-  refillAmount?: number;
-};

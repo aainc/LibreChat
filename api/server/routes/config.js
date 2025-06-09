@@ -37,18 +37,6 @@ router.get('/', async function (req, res) {
   const ldap = getLdapConfig();
 
   try {
-    const isOpenIdEnabled =
-      !!process.env.OPENID_CLIENT_ID &&
-      !!process.env.OPENID_CLIENT_SECRET &&
-      !!process.env.OPENID_ISSUER &&
-      !!process.env.OPENID_SESSION_SECRET;
-
-    const isSamlEnabled =
-      !!process.env.SAML_ENTRY_POINT &&
-      !!process.env.SAML_ISSUER &&
-      !!process.env.SAML_CERT &&
-      !!process.env.SAML_SESSION_SECRET;
-
     /** @type {TStartupConfig} */
     const payload = {
       appTitle: process.env.APP_TITLE || 'LibreChat',
@@ -63,13 +51,14 @@ router.get('/', async function (req, res) {
         !!process.env.APPLE_TEAM_ID &&
         !!process.env.APPLE_KEY_ID &&
         !!process.env.APPLE_PRIVATE_KEY_PATH,
-      openidLoginEnabled: isOpenIdEnabled,
+      openidLoginEnabled:
+        !!process.env.OPENID_CLIENT_ID &&
+        !!process.env.OPENID_CLIENT_SECRET &&
+        !!process.env.OPENID_ISSUER &&
+        !!process.env.OPENID_SESSION_SECRET,
       openidLabel: process.env.OPENID_BUTTON_LABEL || 'Continue with OpenID',
       openidImageUrl: process.env.OPENID_IMAGE_URL,
       openidAutoRedirect: isEnabled(process.env.OPENID_AUTO_REDIRECT),
-      samlLoginEnabled: !isOpenIdEnabled && isSamlEnabled,
-      samlLabel: process.env.SAML_BUTTON_LABEL,
-      samlImageUrl: process.env.SAML_IMAGE_URL,
       serverDomain: process.env.DOMAIN_SERVER || 'http://localhost:3080',
       emailLoginEnabled,
       registrationEnabled: !ldap?.enabled && isEnabled(process.env.ALLOW_REGISTRATION),
@@ -96,26 +85,6 @@ router.get('/', async function (req, res) {
       bundlerURL: process.env.SANDPACK_BUNDLER_URL,
       staticBundlerURL: process.env.SANDPACK_STATIC_BUNDLER_URL,
     };
-    /** @type {TCustomConfig['webSearch']} */
-    const webSearchConfig = req.app.locals.webSearch;
-    if (
-      webSearchConfig != null &&
-      (webSearchConfig.searchProvider ||
-        webSearchConfig.scraperType ||
-        webSearchConfig.rerankerType)
-    ) {
-      payload.webSearch = {};
-    }
-
-    if (webSearchConfig?.searchProvider) {
-      payload.webSearch.searchProvider = webSearchConfig.searchProvider;
-    }
-    if (webSearchConfig?.scraperType) {
-      payload.webSearch.scraperType = webSearchConfig.scraperType;
-    }
-    if (webSearchConfig?.rerankerType) {
-      payload.webSearch.rerankerType = webSearchConfig.rerankerType;
-    }
 
     if (ldap) {
       payload.ldap = ldap;

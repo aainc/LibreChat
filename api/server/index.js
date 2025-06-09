@@ -9,9 +9,8 @@ const passport = require('passport');
 const mongoSanitize = require('express-mongo-sanitize');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
-const { connectDb, indexSync } = require('~/db');
-
 const { jwtLogin, passportLogin } = require('~/strategies');
+const { connectDb, indexSync } = require('~/lib/db');
 const { isEnabled } = require('~/server/utils');
 const { ldapLogin } = require('~/strategies');
 const { logger } = require('~/config');
@@ -37,7 +36,6 @@ const startServer = async () => {
     axios.defaults.headers.common['Accept-Encoding'] = 'gzip';
   }
   await connectDb();
-
   logger.info('Connected to MongoDB');
   await indexSync();
 
@@ -77,7 +75,7 @@ const startServer = async () => {
 
   /* OAUTH */
   app.use(passport.initialize());
-  passport.use(jwtLogin());
+  passport.use(await jwtLogin());
   passport.use(passportLogin());
 
   /* LDAP Auth */
@@ -86,7 +84,7 @@ const startServer = async () => {
   }
 
   if (isEnabled(ALLOW_SOCIAL_LOGIN)) {
-    await configureSocialLogins(app);
+    configureSocialLogins(app);
   }
 
   app.use('/oauth', routes.oauth);

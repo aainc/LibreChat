@@ -1,9 +1,9 @@
-const { logger } = require('@librechat/data-schemas');
 const { ViolationTypes } = require('librechat-data-provider');
-const { createAutoRefillTransaction } = require('./Transaction');
+const { Transaction } = require('./Transaction');
 const { logViolation } = require('~/cache');
 const { getMultiplier } = require('./tx');
-const { Balance } = require('~/db/models');
+const { logger } = require('~/config');
+const Balance = require('./Balance');
 
 function isInvalidDate(date) {
   return isNaN(date);
@@ -60,7 +60,7 @@ const checkBalanceRecord = async function ({
     ) {
       try {
         /** @type {{ rate: number, user: string, balance: number, transaction: import('@librechat/data-schemas').ITransaction}} */
-        const result = await createAutoRefillTransaction({
+        const result = await Transaction.createAutoRefillTransaction({
           user: user,
           tokenType: 'credits',
           context: 'autoRefill',

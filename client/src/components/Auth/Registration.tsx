@@ -4,10 +4,10 @@ import { Turnstile } from '@marsidev/react-turnstile';
 import { useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { useRegisterUserMutation } from 'librechat-data-provider/react-query';
 import type { TRegisterUser, TError } from 'librechat-data-provider';
-import { useLocalize, TranslationKeys, ThemeContext } from '~/hooks';
 import type { TLoginLayoutContext } from '~/common';
-import { Spinner, Button } from '~/components';
 import { ErrorMessage } from './ErrorMessage';
+import { Spinner } from '~/components/svg';
+import { useLocalize, TranslationKeys, ThemeContext } from '~/hooks';
 
 const Registration: React.FC = () => {
   const navigate = useNavigate();
@@ -194,7 +194,7 @@ const Registration: React.FC = () => {
             )}
 
             <div className="mt-6">
-              <Button
+              <button
                 disabled={
                   Object.keys(errors).length > 0 ||
                   isSubmitting ||
@@ -202,11 +202,10 @@ const Registration: React.FC = () => {
                 }
                 type="submit"
                 aria-label="Submit registration"
-                variant="submit"
-                className="h-12 w-full rounded-2xl"
+                className="w-full rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
               >
                 {isSubmitting ? <Spinner /> : localize('com_auth_continue')}
-              </Button>
+              </button>
             </div>
           </form>
 

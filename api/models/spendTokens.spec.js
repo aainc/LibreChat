@@ -1,9 +1,8 @@
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const { Transaction } = require('./Transaction');
+const Balance = require('./Balance');
 const { spendTokens, spendStructuredTokens } = require('./spendTokens');
-const { createTransaction, createAutoRefillTransaction } = require('./Transaction');
-
-require('~/db/models');
 
 // Mock the logger to prevent console output during tests
 jest.mock('~/config', () => ({
@@ -20,15 +19,11 @@ jest.mock('~/server/services/Config');
 describe('spendTokens', () => {
   let mongoServer;
   let userId;
-  let Transaction;
-  let Balance;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
-    await mongoose.connect(mongoServer.getUri());
-
-    Transaction = mongoose.model('Transaction');
-    Balance = mongoose.model('Balance');
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri);
   });
 
   afterAll(async () => {
@@ -202,7 +197,7 @@ describe('spendTokens', () => {
     // Check that the transaction records show the adjusted values
     const transactionResults = await Promise.all(
       transactions.map((t) =>
-        createTransaction({
+        Transaction.create({
           ...txData,
           tokenType: t.tokenType,
           rawAmount: t.rawAmount,
@@ -285,7 +280,7 @@ describe('spendTokens', () => {
 
     // Check the return values from Transaction.create directly
     // This is to verify that the incrementValue is not becoming positive
-    const directResult = await createTransaction({
+    const directResult = await Transaction.create({
       user: userId,
       conversationId: 'test-convo-3',
       model: 'gpt-4',
@@ -612,7 +607,7 @@ describe('spendTokens', () => {
     const promises = [];
     for (let i = 0; i < numberOfRefills; i++) {
       promises.push(
-        createAutoRefillTransaction({
+        Transaction.createAutoRefillTransaction({
           user: userId,
           tokenType: 'credits',
           context: 'concurrent-refill-test',

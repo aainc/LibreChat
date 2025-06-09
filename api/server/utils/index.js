@@ -13,19 +13,12 @@ const math = require('./math');
  * @returns {Boolean}
  */
 function checkEmailConfig() {
-  // Check if Mailgun is configured
-  const hasMailgunConfig =
-    !!process.env.MAILGUN_API_KEY && !!process.env.MAILGUN_DOMAIN && !!process.env.EMAIL_FROM;
-
-  // Check if SMTP is configured
-  const hasSMTPConfig =
+  return (
     (!!process.env.EMAIL_SERVICE || !!process.env.EMAIL_HOST) &&
     !!process.env.EMAIL_USERNAME &&
     !!process.env.EMAIL_PASSWORD &&
-    !!process.env.EMAIL_FROM;
-
-  // Return true if either Mailgun or SMTP is properly configured
-  return hasMailgunConfig || hasSMTPConfig;
+    !!process.env.EMAIL_FROM
+  );
 }
 
 module.exports = {

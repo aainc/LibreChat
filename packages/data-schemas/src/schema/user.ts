@@ -1,6 +1,38 @@
-import { Schema } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 import { SystemRoles } from 'librechat-data-provider';
-import { IUser } from '~/types';
+
+export interface IUser extends Document {
+  name?: string;
+  username?: string;
+  email: string;
+  emailVerified: boolean;
+  password?: string;
+  avatar?: string;
+  provider: string;
+  role?: string;
+  googleId?: string;
+  facebookId?: string;
+  openidId?: string;
+  ldapId?: string;
+  githubId?: string;
+  discordId?: string;
+  appleId?: string;
+  plugins?: unknown[];
+  twoFactorEnabled?: boolean;
+  totpSecret?: string;
+  backupCodes?: Array<{
+    codeHash: string;
+    used: boolean;
+    usedAt?: Date | null;
+  }>;
+  refreshToken?: Array<{
+    refreshToken: string;
+  }>;
+  expiresAt?: Date;
+  termsAccepted?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 // Session sub-schema
 const SessionSchema = new Schema(
@@ -23,7 +55,7 @@ const BackupCodeSchema = new Schema(
   { _id: false },
 );
 
-const userSchema = new Schema<IUser>(
+const User = new Schema<IUser>(
   {
     name: {
       type: String,
@@ -35,7 +67,7 @@ const userSchema = new Schema<IUser>(
     },
     email: {
       type: String,
-      required: [true, "can't be blank"],
+      required: [true, 'can\'t be blank'],
       lowercase: true,
       unique: true,
       match: [/\S+@\S+\.\S+/, 'is invalid'],
@@ -76,11 +108,6 @@ const userSchema = new Schema<IUser>(
       sparse: true,
     },
     openidId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
-    samlId: {
       type: String,
       unique: true,
       sparse: true,
@@ -133,4 +160,4 @@ const userSchema = new Schema<IUser>(
   { timestamps: true },
 );
 
-export default userSchema;
+export default User;

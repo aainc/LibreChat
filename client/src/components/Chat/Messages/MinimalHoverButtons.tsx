@@ -1,21 +1,16 @@
 import { useState } from 'react';
-import type { TMessage, TAttachment, SearchResultData } from 'librechat-data-provider';
+import type { TMessage } from 'librechat-data-provider';
 import { useLocalize, useCopyToClipboard } from '~/hooks';
 import { Clipboard, CheckMark } from '~/components/svg';
 
 type THoverButtons = {
   message: TMessage;
-  searchResults?: { [key: string]: SearchResultData };
 };
 
-export default function MinimalHoverButtons({ message, searchResults }: THoverButtons) {
+export default function MinimalHoverButtons({ message }: THoverButtons) {
   const localize = useLocalize();
   const [isCopied, setIsCopied] = useState(false);
-  const copyToClipboard = useCopyToClipboard({
-    text: message.text,
-    content: message.content,
-    searchResults,
-  });
+  const copyToClipboard = useCopyToClipboard({ text: message.text, content: message.content });
 
   return (
     <div className="visible mt-0 flex justify-center gap-1 self-end text-gray-400 lg:justify-start">

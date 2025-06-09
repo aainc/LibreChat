@@ -1,7 +1,17 @@
-import { Schema } from 'mongoose';
-import type * as t from '~/types';
+import { Schema, Document, Types } from 'mongoose';
 
-const balanceSchema = new Schema<t.IBalance>({
+export interface IBalance extends Document {
+  user: Types.ObjectId;
+  tokenCredits: number;
+  // Automatic refill settings
+  autoRefillEnabled: boolean;
+  refillIntervalValue: number;
+  refillIntervalUnit: 'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
+  lastRefill: Date;
+  refillAmount: number;
+}
+
+const balanceSchema = new Schema<IBalance>({
   user: {
     type: Schema.Types.ObjectId,
     ref: 'User',

@@ -1,10 +1,10 @@
 const fs = require('fs');
 const LdapStrategy = require('passport-ldapauth');
 const { SystemRoles } = require('librechat-data-provider');
-const { logger } = require('@librechat/data-schemas');
-const { createUser, findUser, updateUser, countUsers } = require('~/models');
-const { getBalanceConfig } = require('~/server/services/Config');
+const { findUser, createUser, updateUser } = require('~/models/userMethods');
+const { countUsers } = require('~/models/userMethods');
 const { isEnabled } = require('~/server/utils');
+const logger = require('~/utils/logger');
 
 const {
   LDAP_URL,
@@ -124,8 +124,7 @@ const ldapLogin = new LdapStrategy(ldapOptions, async (userinfo, done) => {
         name: fullName,
         role: isFirstRegisteredUser ? SystemRoles.ADMIN : SystemRoles.USER,
       };
-      const balanceConfig = await getBalanceConfig();
-      const userId = await createUser(user, balanceConfig);
+      const userId = await createUser(user);
       user._id = userId;
     } else {
       // Users registered in LDAP are assumed to have their user information managed in LDAP,

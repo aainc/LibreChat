@@ -15,12 +15,10 @@ import {
   CodeBlockProvider,
   useCodeBlockContext,
 } from '~/Providers';
-import { Citation, CompositeCitation, HighlightedText } from '~/components/Web/Citation';
 import { Artifact, artifactPlugin } from '~/components/Artifacts/Artifact';
 import { langSubset, preprocessLaTeX, handleDoubleClick } from '~/utils';
 import CodeBlock from '~/components/Messages/Content/CodeBlock';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
-import { unicodeCitation } from '~/components/Web';
 import { useFileDownload } from '~/data-provider';
 import useLocalize from '~/hooks/useLocalize';
 import store from '~/store';
@@ -199,14 +197,16 @@ const Markdown = memo(({ content = '', isLatestMessage }: TContentProps) => {
     [],
   );
 
-  const remarkPlugins: Pluggable[] = [
-    supersub,
-    remarkGfm,
-    remarkDirective,
-    artifactPlugin,
-    [remarkMath, { singleDollarTextMath: true }],
-    unicodeCitation,
-  ];
+  const remarkPlugins: Pluggable[] = useMemo(
+    () => [
+      supersub,
+      remarkGfm,
+      remarkDirective,
+      artifactPlugin,
+      [remarkMath, { singleDollarTextMath: true }],
+    ],
+    [],
+  );
 
   if (isInitializing) {
     return (
@@ -232,9 +232,6 @@ const Markdown = memo(({ content = '', isLatestMessage }: TContentProps) => {
               a,
               p,
               artifact: Artifact,
-              citation: Citation,
-              'highlighted-text': HighlightedText,
-              'composite-citation': CompositeCitation,
             } as {
               [nodeType: string]: React.ElementType;
             }

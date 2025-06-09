@@ -124,7 +124,13 @@ describe('MistralOCR Service', () => {
           fileName: 'test.pdf',
           apiKey: 'test-api-key',
         }),
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow();
+
+      const { logger } = require('~/config');
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error uploading document to Mistral:'),
+        expect.any(String),
+      );
     });
   });
 
@@ -186,7 +192,6 @@ describe('MistralOCR Service', () => {
         {
           model: 'mistral-ocr-latest',
           include_image_base64: false,
-          image_limit: 0,
           document: {
             type: 'document_url',
             document_url: 'https://document-url.com',
@@ -222,7 +227,6 @@ describe('MistralOCR Service', () => {
         {
           model: 'mistral-ocr-latest',
           include_image_base64: false,
-          image_limit: 0,
           document: {
             type: 'image_url',
             image_url: 'https://image-url.com/image.png',

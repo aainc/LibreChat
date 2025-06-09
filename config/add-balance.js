@@ -1,10 +1,9 @@
 const path = require('path');
-const mongoose = require(path.resolve(__dirname, '..', 'api', 'node_modules', 'mongoose'));
-const { User } = require('@librechat/data-schemas').createModels(mongoose);
 require('module-alias')({ base: path.resolve(__dirname, '..', 'api') });
 const { askQuestion, silentExit } = require('./helpers');
 const { isEnabled } = require('~/server/utils/handleText');
-const { createTransaction } = require('~/models/Transaction');
+const { Transaction } = require('~/models/Transaction');
+const User = require('~/models/User');
 const connect = require('./connect');
 
 (async () => {
@@ -79,7 +78,7 @@ const connect = require('./connect');
    */
   let result;
   try {
-    result = await createTransaction({
+    result = await Transaction.create({
       user: user._id,
       tokenType: 'credits',
       context: 'admin',

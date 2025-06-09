@@ -1,5 +1,8 @@
-const { logger } = require('@librechat/data-schemas');
-const { Banner } = require('~/db/models');
+const mongoose = require('mongoose');
+const logger = require('~/config/winston');
+const { bannerSchema } = require('@librechat/data-schemas');
+
+const Banner = mongoose.model('Banner', bannerSchema);
 
 /**
  * Retrieves the current active banner.
@@ -25,4 +28,4 @@ const getBanner = async (user) => {
   }
 };
 
-module.exports = { getBanner };
+module.exports = { Banner, getBanner };

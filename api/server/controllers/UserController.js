@@ -1,11 +1,6 @@
+const { FileSources } = require('librechat-data-provider');
 const {
-  Tools,
-  FileSources,
-  webSearchKeys,
-  extractWebSearchEnvVars,
-} = require('librechat-data-provider');
-const { logger } = require('@librechat/data-schemas');
-const {
+  Balance,
   getFiles,
   updateUser,
   deleteFiles,
@@ -15,14 +10,16 @@ const {
   deleteUserById,
   deleteAllUserSessions,
 } = require('~/models');
+const User = require('~/models/User');
 const { updateUserPluginAuth, deleteUserPluginAuth } = require('~/server/services/PluginService');
 const { updateUserPluginsService, deleteUserKey } = require('~/server/services/UserService');
 const { verifyEmail, resendVerificationEmail } = require('~/server/services/AuthService');
 const { needsRefresh, getNewS3URL } = require('~/server/services/Files/S3/crud');
 const { processDeleteRequest } = require('~/server/services/Files/process');
-const { Transaction, Balance, User } = require('~/db/models');
 const { deleteAllSharedLinks } = require('~/models/Share');
 const { deleteToolCalls } = require('~/models/ToolCall');
+const { Transaction } = require('~/models/Transaction');
+const { logger } = require('~/config');
 
 const getUserController = async (req, res) => {
   /** @type {MongoUser} */
@@ -86,6 +83,7 @@ const deleteUserFiles = async (req) => {
 const updateUserPluginsController = async (req, res) => {
   const { user } = req;
   const { pluginKey, action, auth, isEntityTool } = req.body;
+  let authService;
   try {
     if (!isEntityTool) {
       const userPluginsService = await updateUserPluginsService(user, pluginKey, action);
@@ -97,55 +95,32 @@ const updateUserPluginsController = async (req, res) => {
       }
     }
 
-    if (auth == null) {
-      return res.status(200).send();
-    }
-
-    let keys = Object.keys(auth);
-    if (keys.length === 0 && pluginKey !== Tools.web_search) {
-      return res.status(200).send();
-    }
-    const values = Object.values(auth);
-
-    /** @type {number} */
-    let status = 200;
-    /** @type {string} */
-    let message;
-    /** @type {IPluginAuth | Error} */
-    let authService;
-
-    if (pluginKey === Tools.web_search) {
-      /** @type  {TCustomConfig['webSearch']} */
-      const webSearchConfig = req.app.locals?.webSearch;
-      keys = extractWebSearchEnvVars({
-        keys: action === 'install' ? keys : webSearchKeys,
-        config: webSearchConfig,
-      });
-    }
-
-    if (action === 'install') {
-      for (let i = 0; i < keys.length; i++) {
-        authService = await updateUserPluginAuth(user.id, keys[i], pluginKey, values[i]);
-        if (authService instanceof Error) {
-          logger.error('[authService]', authService);
-          ({ status, message } = authService);
+    if (auth) {
+      const keys = Object.keys(auth);
+      const values = Object.values(auth);
+      if (action === 'install' && keys.length > 0) {
+        for (let i = 0; i < keys.length; i++) {
+          authService = await updateUserPluginAuth(user.id, keys[i], pluginKey, values[i]);
+          if (authService instanceof Error) {
+            logger.error('[authService]', authService);
+            const { status, message } = authService;
+            res.status(status).send({ message });
+          }
         }
       }
-    } else if (action === 'uninstall') {
-      for (let i = 0; i < keys.length; i++) {
-        authService = await deleteUserPluginAuth(user.id, keys[i]);
-        if (authService instanceof Error) {
-          logger.error('[authService]', authService);
-          ({ status, message } = authService);
+      if (action === 'uninstall' && keys.length > 0) {
+        for (let i = 0; i < keys.length; i++) {
+          authService = await deleteUserPluginAuth(user.id, keys[i]);
+          if (authService instanceof Error) {
+            logger.error('[authService]', authService);
+            const { status, message } = authService;
+            res.status(status).send({ message });
+          }
         }
       }
     }
 
-    if (status === 200) {
-      return res.status(status).send();
-    }
-
-    res.status(status).send({ message });
+    res.status(200).send();
   } catch (err) {
     logger.error('[updateUserPluginsController]', err);
     return res.status(500).json({ message: 'Something went wrong.' });
@@ -163,11 +138,7 @@ const deleteUserController = async (req, res) => {
     await Balance.deleteMany({ user: user._id }); // delete user balances
     await deletePresets(user.id); // delete user presets
     /* TODO: Delete Assistant Threads */
-    try {
-      await deleteConvos(user.id); // delete user convos
-    } catch (error) {
-      logger.error('[deleteUserController] Error deleting user convos, likely no convos', error);
-    }
+    await deleteConvos(user.id); // delete user convos
     await deleteUserPluginAuth(user.id, null, true); // delete user plugin auth
     await deleteUserById(user.id); // delete user
     await deleteAllSharedLinks(user.id); // delete user shared links

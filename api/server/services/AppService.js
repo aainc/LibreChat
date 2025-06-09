@@ -1,18 +1,11 @@
 const {
   FileSources,
+  EModelEndpoint,
   loadOCRConfig,
   processMCPEnv,
-  EModelEndpoint,
   getConfigDefaults,
-  loadWebSearchConfig,
 } = require('librechat-data-provider');
-const {
-  checkHealth,
-  checkConfig,
-  checkVariables,
-  checkAzureVariables,
-  checkWebSearchConfig,
-} = require('./start/checks');
+const { checkVariables, checkHealth, checkConfig, checkAzureVariables } = require('./start/checks');
 const { azureAssistantsDefaults, assistantsConfigSetup } = require('./start/assistants');
 const { initializeAzureBlobService } = require('./Files/Azure/initialize');
 const { initializeFirebase } = require('./Files/Firebase/initialize');
@@ -25,8 +18,8 @@ const { processModelSpecs } = require('./start/modelSpecs');
 const { initializeS3 } = require('./Files/S3/initialize');
 const { loadAndFormatTools } = require('./ToolService');
 const { agentsConfigSetup } = require('./start/agents');
+const { initializeRoles } = require('~/models/Role');
 const { isEnabled } = require('~/server/utils');
-const { initializeRoles } = require('~/models');
 const { getMCPManager } = require('~/config');
 const paths = require('~/config/paths');
 
@@ -42,8 +35,6 @@ const AppService = async (app) => {
   const configDefaults = getConfigDefaults();
 
   const ocr = loadOCRConfig(config.ocr);
-  const webSearch = loadWebSearchConfig(config.webSearch);
-  checkWebSearchConfig(webSearch);
   const filteredTools = config.filteredTools;
   const includedTools = config.includedTools;
   const fileStrategy = config.fileStrategy ?? configDefaults.fileStrategy;
@@ -88,7 +79,6 @@ const AppService = async (app) => {
   const defaultLocals = {
     ocr,
     paths,
-    webSearch,
     fileStrategy,
     socialLogins,
     filteredTools,

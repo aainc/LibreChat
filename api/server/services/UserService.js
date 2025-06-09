@@ -1,8 +1,7 @@
-const { logger } = require('@librechat/data-schemas');
 const { ErrorTypes } = require('librechat-data-provider');
-const { encrypt, decrypt } = require('~/server/utils/crypto');
-const { updateUser } = require('~/models');
-const { Key } = require('~/db/models');
+const { encrypt, decrypt } = require('~/server/utils');
+const { updateUser, Key } = require('~/models');
+const { logger } = require('~/config');
 
 /**
  * Updates the plugins for a user based on the action specified (install/uninstall).

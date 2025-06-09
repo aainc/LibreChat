@@ -32,17 +32,8 @@ export default function OpenAIImageGen({
   let height: number | undefined;
   let quality: 'low' | 'medium' | 'high' = 'high';
 
-  // Parse args if it's a string
-  let parsedArgs;
   try {
-    parsedArgs = typeof _args === 'string' ? JSON.parse(_args) : _args;
-  } catch (error) {
-    console.error('Error parsing args:', error);
-    parsedArgs = {};
-  }
-
-  try {
-    const argsObj = parsedArgs;
+    const argsObj = typeof _args === 'string' ? JSON.parse(_args) : _args;
 
     if (argsObj && typeof argsObj.size === 'string') {
       const [w, h] = argsObj.size.split('x').map((v: string) => parseInt(v, 10));
@@ -206,7 +197,6 @@ export default function OpenAIImageGen({
             width={Number(dimensions.width?.split('px')[0])}
             height={Number(dimensions.height?.split('px')[0])}
             placeholderDimensions={{ width: dimensions.width, height: dimensions.height }}
-            args={parsedArgs}
           />
         </div>
       </div>

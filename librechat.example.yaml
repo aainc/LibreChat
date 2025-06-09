@@ -80,7 +80,7 @@ interface:
 
 # Example Registration Object Structure (optional)
 registration:
-  socialLogins: ['github', 'google', 'discord', 'openid', 'facebook', 'apple', 'saml']
+  socialLogins: ['github', 'google', 'discord', 'openid', 'facebook', 'apple']
   # allowedDomains:
   # - "gmail.com"
 

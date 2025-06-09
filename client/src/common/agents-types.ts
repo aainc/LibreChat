@@ -10,7 +10,6 @@ export type TAgentOption = OptionWithIcon &
   };
 
 export type TAgentCapabilities = {
-  [AgentCapabilities.web_search]: boolean;
   [AgentCapabilities.file_search]: boolean;
   [AgentCapabilities.execute_code]: boolean;
   [AgentCapabilities.end_after_tools]?: boolean;

@@ -1,31 +1,28 @@
 import React, { useState, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { MessageSquare, Command, DollarSign } from 'lucide-react';
+import { MessageSquare, Command } from 'lucide-react';
 import { SettingsTabValues } from 'librechat-data-provider';
-import { useGetStartupConfig } from '~/data-provider';
 import type { TDialogProps } from '~/common';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { GearIcon, DataIcon, SpeechIcon, UserIcon, ExperimentIcon } from '~/components/svg';
-import { General, Chat, Speech, Beta, Commands, Data, Account, Balance } from './SettingsTabs';
+import { General, Chat, Speech, Beta, Commands, Data, Account } from './SettingsTabs';
 import { useMediaQuery, useLocalize, TranslationKeys } from '~/hooks';
 import { cn } from '~/utils';
 
 export default function Settings({ open, onOpenChange }: TDialogProps) {
   const isSmallScreen = useMediaQuery('(max-width: 767px)');
-  const { data: startupConfig } = useGetStartupConfig();
   const localize = useLocalize();
   const [activeTab, setActiveTab] = useState(SettingsTabValues.GENERAL);
   const tabRefs = useRef({});
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    const tabs: SettingsTabValues[] = [
+    const tabs = [
       SettingsTabValues.GENERAL,
       SettingsTabValues.CHAT,
       SettingsTabValues.BETA,
       SettingsTabValues.COMMANDS,
       SettingsTabValues.SPEECH,
       SettingsTabValues.DATA,
-      ...(startupConfig?.balance?.enabled ? [SettingsTabValues.BALANCE] : []),
       SettingsTabValues.ACCOUNT,
     ];
     const currentIndex = tabs.indexOf(activeTab);
@@ -85,15 +82,6 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
       icon: <DataIcon />,
       label: 'com_nav_setting_data',
     },
-    ...(startupConfig?.balance?.enabled
-      ? [
-        {
-          value: SettingsTabValues.BALANCE,
-            icon: <DollarSign size={18} />,
-          label: 'com_nav_setting_balance' as TranslationKeys,
-        },
-        ]
-      : ([] as { value: SettingsTabValues; icon: React.JSX.Element; label: TranslationKeys }[])),
     {
       value: SettingsTabValues.ACCOUNT,
       icon: <UserIcon />,
@@ -216,11 +204,6 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
                     <Tabs.Content value={SettingsTabValues.DATA}>
                       <Data />
                     </Tabs.Content>
-                    {startupConfig?.balance?.enabled && (
-                      <Tabs.Content value={SettingsTabValues.BALANCE}>
-                        <Balance />
-                      </Tabs.Content>
-                    )}
                     <Tabs.Content value={SettingsTabValues.ACCOUNT}>
                       <Account />
                     </Tabs.Content>

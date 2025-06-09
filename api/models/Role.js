@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const {
   CacheKeys,
   SystemRoles,
@@ -6,9 +7,11 @@ const {
   permissionsSchema,
   removeNullishValues,
 } = require('librechat-data-provider');
-const { logger } = require('@librechat/data-schemas');
 const getLogStores = require('~/cache/getLogStores');
-const { Role } = require('~/db/models');
+const { roleSchema } = require('@librechat/data-schemas');
+const { logger } = require('~/config');
+
+const Role = mongoose.model('Role', roleSchema);
 
 /**
  * Retrieve a role by name and convert the found role document to a plain object.
@@ -171,6 +174,35 @@ async function updateAccessPermissions(roleName, permissionsUpdate) {
 }
 
 /**
+ * Initialize default roles in the system.
+ * Creates the default roles (ADMIN, USER) if they don't exist in the database.
+ * Updates existing roles with new permission types if they're missing.
+ *
+ * @returns {Promise<void>}
+ */
+const initializeRoles = async function () {
+  for (const roleName of [SystemRoles.ADMIN, SystemRoles.USER]) {
+    let role = await Role.findOne({ name: roleName });
+    const defaultPerms = roleDefaults[roleName].permissions;
+
+    if (!role) {
+      // Create new role if it doesn't exist.
+      role = new Role(roleDefaults[roleName]);
+    } else {
+      // Ensure role.permissions is defined.
+      role.permissions = role.permissions || {};
+      // For each permission type in defaults, add it if missing.
+      for (const permType of Object.keys(defaultPerms)) {
+        if (role.permissions[permType] == null) {
+          role.permissions[permType] = defaultPerms[permType];
+        }
+      }
+    }
+    await role.save();
+  }
+};
+
+/**
  * Migrates roles from old schema to new schema structure.
  * This can be called directly to fix existing roles.
  *
@@ -250,8 +282,10 @@ const migrateRoleSchema = async function (roleName) {
 };
 
 module.exports = {
+  Role,
   getRoleByName,
+  initializeRoles,
   updateRoleByName,
-  migrateRoleSchema,
   updateAccessPermissions,
+  migrateRoleSchema,
 };

@@ -1,6 +1,32 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import { FileSources } from 'librechat-data-provider';
-import type { IMongoFile } from '~/types';
+
+// @ts-ignore
+export interface IMongoFile extends Document {
+  user: Types.ObjectId;
+  conversationId?: string;
+  file_id: string;
+  temp_file_id?: string;
+  bytes: number;
+  text?: string;
+  filename: string;
+  filepath: string;
+  object: 'file';
+  embedded?: boolean;
+  type: string;
+  context?: string;
+  usage: number;
+  source: string;
+  model?: string;
+  width?: number;
+  height?: number;
+  metadata?: {
+    fileIdentifier?: string;
+  };
+  expiresAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 const file: Schema<IMongoFile> = new Schema(
   {

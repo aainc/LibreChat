@@ -1,4 +1,7 @@
-const { Action } = require('~/db/models');
+const mongoose = require('mongoose');
+const { actionSchema } = require('@librechat/data-schemas');
+
+const Action = mongoose.model('action', actionSchema);
 
 /**
  * Update an action with new data without overwriting existing properties,

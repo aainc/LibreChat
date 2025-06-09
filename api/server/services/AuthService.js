@@ -3,23 +3,24 @@ const { webcrypto } = require('node:crypto');
 const { SystemRoles, errorsToString } = require('librechat-data-provider');
 const {
   findUser,
+  countUsers,
   createUser,
   updateUser,
-  findToken,
-  countUsers,
   getUserById,
-  findSession,
-  createToken,
-  deleteTokens,
-  deleteSession,
-  createSession,
   generateToken,
   deleteUserById,
+} = require('~/models/userMethods');
+const {
+  createToken,
+  findToken,
+  deleteTokens,
+  findSession,
+  deleteSession,
+  createSession,
   generateRefreshToken,
 } = require('~/models');
 const { isEnabled, checkEmailConfig, sendEmail } = require('~/server/utils');
 const { isEmailDomainAllowed } = require('~/server/services/domains');
-const { getBalanceConfig } = require('~/server/services/Config');
 const { registerSchema } = require('~/strategies/validators');
 const { logger } = require('~/config');
 
@@ -145,7 +146,6 @@ const verifyEmail = async (req) => {
   }
 
   const updatedUser = await updateUser(emailVerificationData.userId, { emailVerified: true });
-
   if (!updatedUser) {
     logger.warn(`[verifyEmail] [User update failed] [Email: ${decodedEmail}]`);
     return new Error('Failed to update user verification status');
@@ -155,7 +155,6 @@ const verifyEmail = async (req) => {
   logger.info(`[verifyEmail] Email verification successful [Email: ${decodedEmail}]`);
   return { message: 'Email verification was successful', status: 'success' };
 };
-
 /**
  * Register a new user.
  * @param {MongoUser} user <email, password, name, username>
@@ -217,9 +216,7 @@ const registerUser = async (user, additionalData = {}) => {
 
     const emailEnabled = checkEmailConfig();
     const disableTTL = isEnabled(process.env.ALLOW_UNVERIFIED_EMAIL_LOGIN);
-    const balanceConfig = await getBalanceConfig();
-
-    const newUser = await createUser(newUserData, balanceConfig, disableTTL, true);
+    const newUser = await createUser(newUserData, disableTTL, true);
     newUserId = newUser._id;
     if (emailEnabled && !newUser.emailVerified) {
       await sendVerificationEmail({
@@ -380,60 +377,10 @@ const setAuthTokens = async (userId, res, sessionId = null) => {
       secure: isProduction,
       sameSite: 'strict',
     });
-    res.cookie('token_provider', 'librechat', {
-      expires: new Date(refreshTokenExpires),
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'strict',
-    });
+
     return token;
   } catch (error) {
     logger.error('[setAuthTokens] Error in setting authentication tokens:', error);
-    throw error;
-  }
-};
-
-/**
- * @function setOpenIDAuthTokens
- * Set OpenID Authentication Tokens
- * //type tokenset from openid-client
- * @param {import('openid-client').TokenEndpointResponse & import('openid-client').TokenEndpointResponseHelpers} tokenset
- * - The tokenset object containing access and refresh tokens
- * @param {Object} res - response object
- * @returns {String} - access token
- */
-const setOpenIDAuthTokens = (tokenset, res) => {
-  try {
-    if (!tokenset) {
-      logger.error('[setOpenIDAuthTokens] No tokenset found in request');
-      return;
-    }
-    const { REFRESH_TOKEN_EXPIRY } = process.env ?? {};
-    const expiryInMilliseconds = eval(REFRESH_TOKEN_EXPIRY) ?? 1000 * 60 * 60 * 24 * 7; // 7 days default
-    const expirationDate = new Date(Date.now() + expiryInMilliseconds);
-    if (tokenset == null) {
-      logger.error('[setOpenIDAuthTokens] No tokenset found in request');
-      return;
-    }
-    if (!tokenset.access_token || !tokenset.refresh_token) {
-      logger.error('[setOpenIDAuthTokens] No access or refresh token found in tokenset');
-      return;
-    }
-    res.cookie('refreshToken', tokenset.refresh_token, {
-      expires: expirationDate,
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'strict',
-    });
-    res.cookie('token_provider', 'openid', {
-      expires: expirationDate,
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'strict',
-    });
-    return tokenset.access_token;
-  } catch (error) {
-    logger.error('[setOpenIDAuthTokens] Error in setting authentication tokens:', error);
     throw error;
   }
 };
@@ -505,5 +452,4 @@ module.exports = {
   resetPassword,
   requestPasswordReset,
   resendVerificationEmail,
-  setOpenIDAuthTokens,
 };

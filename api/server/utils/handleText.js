@@ -4,10 +4,10 @@ const {
   Capabilities,
   EModelEndpoint,
   isAgentsEndpoint,
+  AgentCapabilities,
   isAssistantsEndpoint,
   defaultRetrievalModels,
   defaultAssistantsVersion,
-  defaultAgentCapabilities,
 } = require('librechat-data-provider');
 const { Providers } = require('@librechat/agents');
 const partialRight = require('lodash/partialRight');
@@ -197,7 +197,15 @@ function generateConfig(key, baseURL, endpoint) {
   }
 
   if (agents) {
-    config.capabilities = defaultAgentCapabilities;
+    config.capabilities = [
+      AgentCapabilities.execute_code,
+      AgentCapabilities.file_search,
+      AgentCapabilities.artifacts,
+      AgentCapabilities.actions,
+      AgentCapabilities.tools,
+      AgentCapabilities.ocr,
+      AgentCapabilities.chain,
+    ];
   }
 
   if (assistants && endpoint === EModelEndpoint.azureAssistants) {

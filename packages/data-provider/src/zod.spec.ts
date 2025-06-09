@@ -264,19 +264,19 @@ describe('convertJsonSchemaToZod', () => {
         properties: {
           name: {
             type: 'string',
-            description: "The user's name",
+            description: 'The user\'s name',
           },
           age: {
             type: 'number',
-            description: "The user's age",
+            description: 'The user\'s age',
           },
         },
       };
       const zodSchema = convertJsonSchemaToZod(schema);
 
       const shape = (zodSchema as z.ZodObject<any>).shape;
-      expect(shape.name.description).toBe("The user's name");
-      expect(shape.age.description).toBe("The user's age");
+      expect(shape.name.description).toBe('The user\'s name');
+      expect(shape.age.description).toBe('The user\'s age');
     });
 
     it('should preserve descriptions in nested objects', () => {
@@ -290,7 +290,7 @@ describe('convertJsonSchemaToZod', () => {
             properties: {
               name: {
                 type: 'string',
-                description: "The user's name",
+                description: 'The user\'s name',
               },
               settings: {
                 type: 'object',
@@ -318,7 +318,7 @@ describe('convertJsonSchemaToZod', () => {
 
         const userShape = shape.user instanceof z.ZodObject ? shape.user.shape : {};
         if ('name' in userShape && 'settings' in userShape) {
-          expect(userShape.name.description).toBe("The user's name");
+          expect(userShape.name.description).toBe('The user\'s name');
           expect(userShape.settings.description).toBe('User preferences');
 
           const settingsShape =
@@ -682,7 +682,10 @@ describe('convertJsonSchemaToZod', () => {
           name: { type: 'string' },
           age: { type: 'number' },
         },
-        anyOf: [{ required: ['name'] }, { required: ['age'] }],
+        anyOf: [
+          { required: ['name'] },
+          { required: ['age'] },
+        ],
         oneOf: [
           { properties: { role: { type: 'string', enum: ['admin'] } } },
           { properties: { role: { type: 'string', enum: ['user'] } } },
@@ -705,7 +708,7 @@ describe('convertJsonSchemaToZod', () => {
     it('should drop fields from nested schemas', () => {
       // Create a schema with nested fields that should be dropped
       const schema: JsonSchemaType & {
-        properties?: Record<string, JsonSchemaType & { anyOf?: any; oneOf?: any }>;
+        properties?: Record<string, JsonSchemaType & { anyOf?: any; oneOf?: any }>
       } = {
         type: 'object',
         properties: {
@@ -715,7 +718,10 @@ describe('convertJsonSchemaToZod', () => {
               name: { type: 'string' },
               role: { type: 'string' },
             },
-            anyOf: [{ required: ['name'] }, { required: ['role'] }],
+            anyOf: [
+              { required: ['name'] },
+              { required: ['role'] },
+            ],
           },
           settings: {
             type: 'object',
@@ -736,24 +742,20 @@ describe('convertJsonSchemaToZod', () => {
       });
 
       // The schema should still validate normal properties
-      expect(
-        zodSchema?.parse({
-          user: { name: 'John', role: 'admin' },
-          settings: { theme: 'custom' }, // This would fail if oneOf was still present
-        }),
-      ).toEqual({
+      expect(zodSchema?.parse({
+        user: { name: 'John', role: 'admin' },
+        settings: { theme: 'custom' }, // This would fail if oneOf was still present
+      })).toEqual({
         user: { name: 'John', role: 'admin' },
         settings: { theme: 'custom' },
       });
 
       // But the anyOf constraint should be gone from user
       // (If it was present, this would fail because neither name nor role is required)
-      expect(
-        zodSchema?.parse({
-          user: {},
-          settings: { theme: 'light' },
-        }),
-      ).toEqual({
+      expect(zodSchema?.parse({
+        user: {},
+        settings: { theme: 'light' },
+      })).toEqual({
         user: {},
         settings: { theme: 'light' },
       });
@@ -801,7 +803,10 @@ describe('convertJsonSchemaToZod', () => {
                       anyOf: [{ minItems: 1 }],
                     },
                   },
-                  oneOf: [{ required: ['name', 'permissions'] }, { required: ['name'] }],
+                  oneOf: [
+                    { required: ['name', 'permissions'] },
+                    { required: ['name'] },
+                  ],
                 },
               },
             },
@@ -866,7 +871,10 @@ describe('convertJsonSchemaToZod', () => {
       const schema = {
         type: 'object', // Add a type to satisfy JsonSchemaType
         properties: {}, // Empty properties
-        oneOf: [{ type: 'string' }, { type: 'number' }],
+        oneOf: [
+          { type: 'string' },
+          { type: 'number' },
+        ],
       } as JsonSchemaType & { oneOf?: any };
 
       // Convert with transformOneOfAnyOf option
@@ -885,7 +893,10 @@ describe('convertJsonSchemaToZod', () => {
       const schema = {
         type: 'object', // Add a type to satisfy JsonSchemaType
         properties: {}, // Empty properties
-        anyOf: [{ type: 'string' }, { type: 'number' }],
+        anyOf: [
+          { type: 'string' },
+          { type: 'number' },
+        ],
       } as JsonSchemaType & { anyOf?: any };
 
       // Convert with transformOneOfAnyOf option
@@ -945,7 +956,10 @@ describe('convertJsonSchemaToZod', () => {
         properties: {
           value: { type: 'string' },
         },
-        oneOf: [{ required: ['value'] }, { properties: { optional: { type: 'boolean' } } }],
+        oneOf: [
+          { required: ['value'] },
+          { properties: { optional: { type: 'boolean' } } },
+        ],
       } as JsonSchemaType & { oneOf?: any };
 
       // Convert with transformOneOfAnyOf option
@@ -999,12 +1013,9 @@ describe('convertJsonSchemaToZod', () => {
           },
         },
       } as JsonSchemaType & {
-        properties?: Record<
-          string,
-          JsonSchemaType & {
-            properties?: Record<string, JsonSchemaType & { oneOf?: any }>;
-          }
-        >;
+        properties?: Record<string, JsonSchemaType & {
+          properties?: Record<string, JsonSchemaType & { oneOf?: any }>
+        }>
       };
 
       // Convert with transformOneOfAnyOf option
@@ -1013,16 +1024,14 @@ describe('convertJsonSchemaToZod', () => {
       });
 
       // The schema should validate nested unions
-      expect(
-        zodSchema?.parse({
-          user: {
-            contact: {
-              type: 'email',
-              email: 'test@example.com',
-            },
+      expect(zodSchema?.parse({
+        user: {
+          contact: {
+            type: 'email',
+            email: 'test@example.com',
           },
-        }),
-      ).toEqual({
+        },
+      })).toEqual({
         user: {
           contact: {
             type: 'email',
@@ -1031,16 +1040,14 @@ describe('convertJsonSchemaToZod', () => {
         },
       });
 
-      expect(
-        zodSchema?.parse({
-          user: {
-            contact: {
-              type: 'phone',
-              phone: '123-456-7890',
-            },
+      expect(zodSchema?.parse({
+        user: {
+          contact: {
+            type: 'phone',
+            phone: '123-456-7890',
           },
-        }),
-      ).toEqual({
+        },
+      })).toEqual({
         user: {
           contact: {
             type: 'phone',
@@ -1050,16 +1057,14 @@ describe('convertJsonSchemaToZod', () => {
       });
 
       // Should reject invalid contact types
-      expect(() =>
-        zodSchema?.parse({
-          user: {
-            contact: {
-              type: 'email',
-              phone: '123-456-7890', // Missing email, has phone instead
-            },
+      expect(() => zodSchema?.parse({
+        user: {
+          contact: {
+            type: 'email',
+            phone: '123-456-7890', // Missing email, has phone instead
           },
-        }),
-      ).toThrow();
+        },
+      })).toThrow();
     });
 
     it('should work with dropFields option', () => {
@@ -1067,7 +1072,10 @@ describe('convertJsonSchemaToZod', () => {
       const schema = {
         type: 'object', // Add a type to satisfy JsonSchemaType
         properties: {}, // Empty properties
-        oneOf: [{ type: 'string' }, { type: 'number' }],
+        oneOf: [
+          { type: 'string' },
+          { type: 'number' },
+        ],
         deprecated: true, // Field to drop
       } as JsonSchemaType & { oneOf?: any; deprecated?: boolean };
 
