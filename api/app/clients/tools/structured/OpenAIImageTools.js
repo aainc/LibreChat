@@ -1,6 +1,8 @@
 const { z } = require('zod');
 const axios = require('axios');
+
 const { v4 } = require('uuid');
+
 const OpenAI = require('openai');
 const FormData = require('form-data');
 const { tool } = require('@langchain/core/tools');
@@ -8,6 +10,7 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const { ContentTypes, EImageOutputType } = require('librechat-data-provider');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { logAxiosError, extractBaseURL } = require('~/utils');
+
 const { getFiles } = require('~/models/File');
 const { logger } = require('~/config');
 
@@ -40,6 +43,7 @@ When NOT to use \`image_edit_oai\`:
 
 Both generated and referenced image IDs will be returned in the response, so you can refer to them in future requests made to \`image_edit_oai\`.
 `.trim();
+
 
 /** Default prompt descriptions  */
 const DEFAULT_IMAGE_GEN_PROMPT_DESCRIPTION = `Describe the image you want in detail. 
@@ -161,6 +165,7 @@ function createOpenAIImageTools(fields = {}) {
   }
 
   const imageFiles = fields.imageFiles ?? [];
+
 
   /**
    * Image Generation Tool
