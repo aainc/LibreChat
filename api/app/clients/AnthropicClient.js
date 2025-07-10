@@ -794,7 +794,7 @@ class AnthropicClient extends BaseClient {
         {
           type: 'text',
           text: this.systemMessage,
-          cache_control: { type: 'ephemeral' },
+          cache_control: { type: 'ephemeral', ttl: '1h',},
         },
       ];
     } else if (this.systemMessage) {
@@ -805,7 +805,7 @@ class AnthropicClient extends BaseClient {
       requestOptions.messages = addCacheControl(requestOptions.messages);
     }
 
-    logger.debug('[AnthropicClient]', { ...requestOptions });
+    logger.info('[AnthropicClient]', { ...requestOptions });
     const handlers = createStreamEventHandlers(this.options.res);
     this.streamHandler = new SplitStreamHandler({
       accumulate: true,
@@ -827,7 +827,7 @@ class AnthropicClient extends BaseClient {
           response = await this.createResponse(client, requestOptions);
 
           signal.addEventListener('abort', () => {
-            logger.debug('[AnthropicClient] message aborted!');
+            logger.info('[AnthropicClient] message aborted!');
             if (response.controller?.abort) {
               response.controller.abort();
             }
@@ -988,4 +988,3 @@ class AnthropicClient extends BaseClient {
   }
 }
 
-module.exports = AnthropicClient;

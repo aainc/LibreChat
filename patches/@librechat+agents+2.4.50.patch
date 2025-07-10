@@ -1,0 +1,128 @@
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
+index 748ed2a..129f0eb 100644
+--- a/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
+@@ -145,14 +145,81 @@ class CustomAnthropic extends anthropic.ChatAnthropicMessages {
+         const payload = {
+             ...params,
+             ...formattedMessages};
++        
++        // Fix cache control for system messages to include ttl
++        if (formattedMessages.system && Array.isArray(formattedMessages.system)) {
++            const hasCacheControl = params.headers?.['anthropic-beta']?.includes('prompt-caching');
++            const hasExtendedTTL = params.headers?.['anthropic-beta']?.includes('extended-cache-ttl');
++            
++            if (hasCacheControl && hasExtendedTTL) {
++                // Add ttl to existing cache_control if missing
++                formattedMessages.system = formattedMessages.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        } else if (formattedMessages.system && typeof formattedMessages.system === 'string') {
++            // Convert string system to array format with cache control
++            const hasCacheControl = params.headers?.['anthropic-beta']?.includes('prompt-caching');
++            const hasExtendedTTL = params.headers?.['anthropic-beta']?.includes('extended-cache-ttl');
++            
++            if (hasCacheControl && hasExtendedTTL) {
++                payload.system = [
++                    {
++                        type: 'text',
++                        text: formattedMessages.system,
++                        cache_control: { type: 'ephemeral', ttl: '1h' }
++                    }
++                ];
++            } else if (hasCacheControl) {
++                payload.system = [
++                    {
++                        type: 'text',
++                        text: formattedMessages.system,
++                        cache_control: { type: 'ephemeral' }
++                    }
++                ];
++            }
++        }
++        
+         const coerceContentToString = !_toolsInParams(payload) &&
+             !_documentsInParams(payload) &&
+             !_thinkingInParams(payload);
+-        const stream = await this.createStreamWithRetry({
++        const finalPayload = {
+             ...params,
+             ...formattedMessages,
+             stream: true,
+-        }, {
++        };
++        
++        // Fix system messages to include ttl in finalPayload
++        if (finalPayload.system && Array.isArray(finalPayload.system)) {
++            // Try to find headers from various sources
++            const betaHeaders = 
++                this.clientOptions?.defaultHeaders?.['anthropic-beta'] || 
++                this.streamingClient?.defaultHeaders?.['anthropic-beta'] || 
++                this.batchClient?.defaultHeaders?.['anthropic-beta'] || 
++                '';
++            const hasCacheControl = betaHeaders.includes('prompt-caching');
++            const hasExtendedTTL = betaHeaders.includes('extended-cache-ttl');
++            
++            if (hasCacheControl && hasExtendedTTL) {
++                finalPayload.system = finalPayload.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        }
++        const stream = await this.createStreamWithRetry(finalPayload, {
+             headers: options.headers,
+         });
+         const shouldStreamUsage = this.streamUsage ?? options.streamUsage;
+diff --git a/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
+index 2c2c51a..31a4489 100644
+--- a/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
++++ b/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
+@@ -146,11 +146,32 @@ class CustomAnthropic extends ChatAnthropicMessages {
+         const coerceContentToString = !_toolsInParams(payload) &&
+             !_documentsInParams(payload) &&
+             !_thinkingInParams(payload);
+-        const stream = await this.createStreamWithRetry({
++        
++        // Fix system messages to include ttl before creating stream
++        const finalPayload = {
+             ...params,
+             ...formattedMessages,
+             stream: true,
+-        }, {
++        };
++        
++        if (finalPayload.system && Array.isArray(finalPayload.system)) {
++            const hasCacheControl = params.headers?.['anthropic-beta']?.includes('prompt-caching');
++            const hasExtendedTTL = params.headers?.['anthropic-beta']?.includes('extended-cache-ttl');
++            
++            if (hasCacheControl && hasExtendedTTL) {
++                finalPayload.system = finalPayload.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        }
++        
++        const stream = await this.createStreamWithRetry(finalPayload, {
+             headers: options.headers,
+         });
+         const shouldStreamUsage = this.streamUsage ?? options.streamUsage;
+

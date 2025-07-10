@@ -43,7 +43,7 @@ function getClaudeHeaders(model, supportsCacheControl) {
   } else if (/claude-3[-.]7/.test(model)) {
     return {
       'anthropic-beta':
-        'token-efficient-tools-2025-02-19,output-128k-2025-02-19,prompt-caching-2024-07-31',
+        'extended-cache-ttl-2025-04-11,token-efficient-tools-2025-02-19,output-128k-2025-02-19,prompt-caching-2024-07-31',
     };
   } else if (
     /claude-(?:sonnet|opus|haiku)-[4-9]/.test(model) ||
@@ -51,11 +51,11 @@ function getClaudeHeaders(model, supportsCacheControl) {
     /claude-4(?:-(?:sonnet|opus|haiku))?/.test(model)
   ) {
     return {
-      'anthropic-beta': 'prompt-caching-2024-07-31',
+      'anthropic-beta': 'extended-cache-ttl-2025-04-11,prompt-caching-2024-07-31',
     };
   } else {
     return {
-      'anthropic-beta': 'prompt-caching-2024-07-31',
+      'anthropic-beta': 'extended-cache-ttl-2025-04-11,prompt-caching-2024-07-31',
     };
   }
 }

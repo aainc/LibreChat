@@ -5,7 +5,11 @@ FROM node:20-alpine AS node
 
 # Install jemalloc
 RUN apk add --no-cache jemalloc
-RUN apk add --no-cache python3 py3-pip uv
+#RUN apk add --no-cache python3 py3-pip uv
+#RUN pip install --no-cache-dir uv
+RUN apk add --no-cache python3 py3-pip curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    ln -s /root/.cargo/bin/uv /usr/local/bin/uv
 
 # Set environment variable to use jemalloc
 ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
@@ -30,6 +34,8 @@ RUN \
     npm config set fetch-retries 5 ; \
     npm config set fetch-retry-mintimeout 15000 ; \
     npm install --no-audit; \
+    patch -p1 -i patches/@librechat+agents+2.4.50.patch \
+    npx patch-package; \
     # React client build
     NODE_OPTIONS="--max-old-space-size=2048" npm run frontend; \
     npm prune --production; \
