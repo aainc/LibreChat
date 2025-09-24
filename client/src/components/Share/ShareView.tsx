@@ -23,71 +23,34 @@ function SharedView() {
   const dataTree = data && buildTree({ messages: data.messages });
   const messagesTree = dataTree?.length === 0 ? null : (dataTree ?? null);
 
-  // Artifacts state - detect if messages contain artifacts
-  const artifacts = useRecoilValue(store.artifactsState);
-  const artifactsVisibility = useRecoilValue(store.artifactsVisibility);
+  // Artifacts state management
   const setArtifacts = useSetRecoilState(store.artifactsState);
   const setCurrentArtifactId = useSetRecoilState(store.currentArtifactId);
-
-  // Check if messages contain artifacts
-  const hasArtifacts = useMemo(() => {
-    if (!messagesTree) return false;
-    return messagesTree.some(msg => {
-      const text = msg.text || '';
-      const content = msg.content?.[0]?.text || '';
-      // More comprehensive artifact detection
-      return text.includes('<artifact') ||
-             content.includes('<artifact') ||
-             text.includes('Click to open') ||
-             content.includes('Click to open') ||
-             (msg.content && Array.isArray(msg.content) && msg.content.some(c =>
-               c.text?.includes('<artifact') || c.text?.includes('Click to open')
-             ));
-    });
-  }, [messagesTree]);
-
-  // Force artifacts visibility for shared views with artifacts
-  const [localArtifactsVisible, setLocalArtifactsVisible] = useState(false);
-
-  useEffect(() => {
-    if (hasArtifacts) {
-      setLocalArtifactsVisible(true);
-    }
-  }, [hasArtifacts]);
+  const [hasExtractedArtifacts, setHasExtractedArtifacts] = useState(false);
 
   // Initialize artifacts state from shared messages
   useEffect(() => {
     if (data?.messages) {
-      console.log('Debug: Shared message data:', data.messages);
-
       const extractedArtifacts = {};
       let foundArtifactId = null;
 
       // Extract artifacts from messages
-      data.messages.forEach((msg, index) => {
-        console.log(`Debug: Message ${index}:`, {
-          text: msg.text?.substring(0, 200),
-          content: msg.content,
-          hasArtifact: msg.text?.includes('<artifact') || (msg.content && JSON.stringify(msg.content).includes('<artifact'))
-        });
-
+      data.messages.forEach((msg) => {
         const text = msg.text || '';
         const contentString = Array.isArray(msg.content) ? msg.content.map(c => c.text).join('') : '';
         const fullText = text + contentString;
 
-        // Try to match :::artifact{...} format
-        const artifactMatch = fullText.match(/:::artifact\{identifier="([^"]*)"[^}]*\}\s*```\s*(.*?)\s*```\s*:::/s);
+        // Match :::artifact{...} format and extract properties
+        const artifactMatch = fullText.match(/:::artifact\{identifier="([^"]*)"(?:\s+type="([^"]*)")?(?:\s+title="([^"]*)")?\}\s*```\s*(.*?)\s*```\s*:::/s);
 
         if (artifactMatch) {
-          const [, identifier, content] = artifactMatch;
+          const [, identifier, type = 'text/html', title, content] = artifactMatch;
           const artifactId = `artifact_${identifier}`;
-
-          console.log('Debug: Found artifact:', { identifier, artifactId, content: content.substring(0, 200) });
 
           extractedArtifacts[artifactId] = {
             identifier,
-            type: 'image/svg+xml',
-            title: '簡単な風景図',
+            type,
+            title: title || identifier,
             content: content.trim(),
             lastUpdateTime: Date.now(),
           };
@@ -102,6 +65,7 @@ function SharedView() {
         if (foundArtifactId) {
           setCurrentArtifactId(foundArtifactId);
         }
+        setHasExtractedArtifacts(true);
       }
     }
   }, [data?.messages, setArtifacts, setCurrentArtifactId]);
@@ -121,14 +85,7 @@ function SharedView() {
     isSubmitting: false,
     latestMessage: null,
     conversation: data ? { conversationId: data.conversationId } : null,
-    // Add other properties that might be needed
-    messages: data?.messages || [],
-    setMessages: () => {},
-    askAssistant: () => {},
-    regenerateMessage: () => {},
-    continueMessage: () => {},
-    handleStopGenerating: () => {},
-  }), [data?.conversationId, data?.messages]);
+  }), [data?.conversationId]);
 
   let content: JSX.Element;
   if (isLoading) {
@@ -167,15 +124,17 @@ function SharedView() {
       <SidePanelProvider>
         <SidePanelGroup
           artifacts={
-            <ChatContext.Provider value={mockChatContext}>
-              <ArtifactsProvider>
-                <ArtifactProvider>
-                  <EditorProvider>
-                    <Artifacts />
-                  </EditorProvider>
-                </ArtifactProvider>
-              </ArtifactsProvider>
-            </ChatContext.Provider>
+            hasExtractedArtifacts ? (
+              <ChatContext.Provider value={mockChatContext}>
+                <ArtifactsProvider>
+                  <ArtifactProvider>
+                    <EditorProvider>
+                      <Artifacts />
+                    </EditorProvider>
+                  </ArtifactProvider>
+                </ArtifactsProvider>
+              </ChatContext.Provider>
+            ) : null
           }
         >
           <main className="flex h-full flex-col overflow-y-auto" role="main">
