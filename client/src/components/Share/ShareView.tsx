@@ -1,13 +1,19 @@
-import { memo } from 'react';
+import { memo, useState, useEffect, useMemo } from 'react';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { Spinner } from '@librechat/client';
 import { useParams } from 'react-router-dom';
 import { buildTree } from 'librechat-data-provider';
 import { useGetSharedMessages } from 'librechat-data-provider/react-query';
 import { useLocalize, useDocumentTitle } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
-import { ShareContext } from '~/Providers';
+import { ShareContext, SidePanelProvider, EditorProvider, ChatContext } from '~/Providers';
+import { ArtifactProvider } from '~/Providers/ArtifactContext';
+import { ArtifactsProvider } from '~/Providers/ArtifactsContext';
+import { SidePanelGroup } from '~/components/SidePanel';
+import Artifacts from '~/components/Artifacts/Artifacts';
 import MessagesView from './MessagesView';
 import Footer from '../Chat/Footer';
+import store from '~/store';
 
 function SharedView() {
   const localize = useLocalize();
@@ -16,6 +22,53 @@ function SharedView() {
   const { data, isLoading } = useGetSharedMessages(shareId ?? '');
   const dataTree = data && buildTree({ messages: data.messages });
   const messagesTree = dataTree?.length === 0 ? null : (dataTree ?? null);
+
+  // Artifacts state management
+  const setArtifacts = useSetRecoilState(store.artifactsState);
+  const setCurrentArtifactId = useSetRecoilState(store.currentArtifactId);
+  const [hasExtractedArtifacts, setHasExtractedArtifacts] = useState(false);
+
+  // Initialize artifacts state from shared messages
+  useEffect(() => {
+    if (data?.messages) {
+      const extractedArtifacts = {};
+      let foundArtifactId = null;
+
+      // Extract artifacts from messages
+      data.messages.forEach((msg) => {
+        const text = msg.text || '';
+        const contentString = Array.isArray(msg.content) ? msg.content.map(c => c.text).join('') : '';
+        const fullText = text + contentString;
+
+        // Match :::artifact{...} format and extract properties
+        const artifactMatch = fullText.match(/:::artifact\{identifier="([^"]*)"(?:\s+type="([^"]*)")?(?:\s+title="([^"]*)")?\}\s*```\s*(.*?)\s*```\s*:::/s);
+
+        if (artifactMatch) {
+          const [, identifier, type = 'text/html', title, content] = artifactMatch;
+          const artifactId = `artifact_${identifier}`;
+
+          extractedArtifacts[artifactId] = {
+            identifier,
+            type,
+            title: title || identifier,
+            content: content.trim(),
+            lastUpdateTime: Date.now(),
+          };
+
+          foundArtifactId = artifactId;
+        }
+      });
+
+      // Set all artifacts at once to avoid multiple re-renders
+      if (Object.keys(extractedArtifacts).length > 0) {
+        setArtifacts(extractedArtifacts);
+        if (foundArtifactId) {
+          setCurrentArtifactId(foundArtifactId);
+        }
+        setHasExtractedArtifacts(true);
+      }
+    }
+  }, [data?.messages, setArtifacts, setCurrentArtifactId]);
 
   // configure document title
   let docTitle = '';
@@ -26,6 +79,13 @@ function SharedView() {
   }
 
   useDocumentTitle(docTitle);
+
+  // Mock ChatContext for ArtifactsProvider in shared views
+  const mockChatContext = useMemo(() => ({
+    isSubmitting: false,
+    latestMessage: null,
+    conversation: data ? { conversationId: data.conversationId } : null,
+  }), [data?.conversationId]);
 
   let content: JSX.Element;
   if (isLoading) {
@@ -61,19 +121,34 @@ function SharedView() {
 
   return (
     <ShareContext.Provider value={{ isSharedConvo: true }}>
-      <main
-        className="relative flex w-full grow overflow-hidden dark:bg-surface-secondary"
-        style={{ paddingBottom: '50px' }}
-      >
-        <div className="transition-width relative flex h-full w-full flex-1 flex-col items-stretch overflow-hidden pt-0 dark:bg-surface-secondary">
-          <div className="flex h-full flex-col text-text-primary" role="presentation">
-            {content}
-            <div className="w-full border-t-0 pl-0 pt-2 md:w-[calc(100%-.5rem)] md:border-t-0 md:border-transparent md:pl-0 md:pt-0 md:dark:border-transparent">
-              <Footer className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-gradient-to-t from-surface-secondary to-transparent px-2 pb-2 pt-8 text-xs text-text-secondary md:px-[60px]" />
+      <SidePanelProvider>
+        <SidePanelGroup
+          artifacts={
+            hasExtractedArtifacts ? (
+              <ChatContext.Provider value={mockChatContext}>
+                <ArtifactsProvider>
+                  <ArtifactProvider>
+                    <EditorProvider>
+                      <Artifacts />
+                    </EditorProvider>
+                  </ArtifactProvider>
+                </ArtifactsProvider>
+              </ChatContext.Provider>
+            ) : null
+          }
+        >
+          <main className="flex h-full flex-col overflow-y-auto" role="main">
+            <div className="transition-width relative flex h-full w-full flex-1 flex-col items-stretch overflow-hidden pt-0 dark:bg-surface-secondary">
+              <div className="flex h-full flex-col text-text-primary" role="presentation">
+                {content}
+                <div className="w-full border-t-0 pl-0 pt-2 md:w-[calc(100%-.5rem)] md:border-t-0 md:border-transparent md:pl-0 md:pt-0 md:dark:border-transparent">
+                  <Footer className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-gradient-to-t from-surface-secondary to-transparent px-2 pb-2 pt-8 text-xs text-text-secondary md:px-[60px]" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </main>
+          </main>
+        </SidePanelGroup>
+      </SidePanelProvider>
     </ShareContext.Provider>
   );
 }
