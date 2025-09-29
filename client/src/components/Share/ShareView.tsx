@@ -138,7 +138,7 @@ function SharedView() {
           }
         >
           <main className="flex h-full flex-col overflow-y-auto" role="main">
-            <div className="transition-width relative flex h-full w-full flex-1 flex-col items-stretch overflow-hidden pt-0 dark:bg-surface-secondary">
+            <div className="transition-width relative flex h-full w-full flex-1 flex-col items-stretch overflow-hidden overflow-y-auto pt-0 dark:bg-surface-secondary">
               <div className="flex h-full flex-col text-text-primary" role="presentation">
                 {content}
                 <div className="w-full border-t-0 pl-0 pt-2 md:w-[calc(100%-.5rem)] md:border-t-0 md:border-transparent md:pl-0 md:pt-0 md:dark:border-transparent">
