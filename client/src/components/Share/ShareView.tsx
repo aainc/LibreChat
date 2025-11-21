@@ -20,7 +20,11 @@ import { ThemeSelector, LangSelector } from '~/components/Nav/SettingsTabs/Gener
 import { ShareArtifactsContainer } from './ShareArtifacts';
 import { useLocalize, useDocumentTitle } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
-import { ShareContext } from '~/Providers';
+import { ShareContext, SidePanelProvider, EditorProvider, ChatContext } from '~/Providers';
+import { ArtifactProvider } from '~/Providers/ArtifactContext';
+import { ArtifactsProvider } from '~/Providers/ArtifactsContext';
+import { SidePanelGroup } from '~/components/SidePanel';
+import Artifacts from '~/components/Artifacts/Artifacts';
 import MessagesView from './MessagesView';
 import Footer from '../Chat/Footer';
 import { cn } from '~/utils';
