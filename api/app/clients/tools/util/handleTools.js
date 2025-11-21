@@ -1,8 +1,16 @@
 const { logger } = require('@librechat/data-schemas');
-const { SerpAPI } = require('@langchain/community/tools/serpapi');
-const { Calculator } = require('@langchain/community/tools/calculator');
-const { mcpToolPattern, loadWebSearchAuth, checkAccess } = require('@librechat/api');
-const { EnvVar, createCodeExecutionTool, createSearchTool } = require('@librechat/agents');
+const {
+  EnvVar,
+  Calculator,
+  createSearchTool,
+  createCodeExecutionTool,
+} = require('@librechat/agents');
+const {
+  checkAccess,
+  createSafeUser,
+  mcpToolPattern,
+  loadWebSearchAuth,
+} = require('@librechat/api');
 const {
   Tools,
   Constants,
@@ -174,19 +182,6 @@ const loadTools = async ({
   };
 
   const customConstructors = {
-    serpapi: async (_toolContextMap) => {
-      const authFields = getAuthFields('serpapi');
-      let envVar = authFields[0] ?? '';
-      let apiKey = process.env[envVar];
-      if (!apiKey) {
-        apiKey = await getUserPluginAuthValue(user, envVar);
-      }
-      return new SerpAPI(apiKey, {
-        location: 'Austin,Texas,United States',
-        hl: 'en',
-        gl: 'us',
-      });
-    },
     youtube: async (_toolContextMap) => {
       const authFields = getAuthFields('youtube');
       const authValues = await loadAuthValues({ userId: user, authFields });
@@ -245,7 +240,6 @@ const loadTools = async ({
     flux: imageGenOptions,
     dalle: imageGenOptions,
     'stable-diffusion': imageGenOptions,
-    serpapi: { location: 'Austin,Texas,United States', hl: 'en', gl: 'us' },
   };
 
   /** @type {Record<string, string>} */
@@ -410,6 +404,7 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
   /** MCP server tools are initialized sequentially by server */
   let index = -1;
   const failedMCPServers = new Set();
+  const safeUser = createSafeUser(options.req?.user);
   for (const [serverName, toolConfigs] of Object.entries(requestedMCPTools)) {
     index++;
     /** @type {LCAvailableTools} */
@@ -420,14 +415,14 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
           continue;
         }
         const mcpParams = {
-          res: options.res,
-          userId: user,
           index,
-          serverName: config.serverName,
-          userMCPAuthMap,
-          model: agent?.model ?? model,
-          provider: agent?.provider ?? endpoint,
           signal,
+          user: safeUser,
+          userMCPAuthMap,
+          res: options.res,
+          model: agent?.model ?? model,
+          serverName: config.serverName,
+          provider: agent?.provider ?? endpoint,
         };
 
         if (config.type === 'all' && toolConfigs.length === 1) {
@@ -442,7 +437,7 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
         }
         if (!availableTools) {
           try {
-            availableTools = await getMCPServerTools(serverName);
+            availableTools = await getMCPServerTools(safeUser.id, serverName);
           } catch (error) {
             logger.error(`Error fetching available tools for MCP server ${serverName}:`, error);
           }
