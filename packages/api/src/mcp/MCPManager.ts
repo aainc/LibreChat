@@ -124,22 +124,15 @@ export class MCPManager extends UserConnectionManager {
       return '';
     }
 
-    // Format instructions for context injection
+    // Format instructions for context injection (sorted for deterministic cache keys)
     const formattedInstructions = Object.entries(instructionsToInclude)
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([serverName, instructions]) => {
-        return `## ${serverName} MCP Server Instructions
-
-${instructions}`;
+        return `## ${serverName} MCP Server Instructions\n\n${instructions}`;
       })
       .join('\n\n');
 
-    return `# MCP Server Instructions
-
-The following MCP servers are available with their specific instructions:
-
-${formattedInstructions}
-
-Please follow these instructions when using tools from the respective MCP servers.`;
+    return `# MCP Server Instructions\n\nThe following MCP servers are available with their specific instructions:\n\n${formattedInstructions}\n\nPlease follow these instructions when using tools from the respective MCP servers.`;
   }
 
   /**

@@ -410,7 +410,10 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
   /** MCP server tools are initialized sequentially by server */
   let index = -1;
   const failedMCPServers = new Set();
-  for (const [serverName, toolConfigs] of Object.entries(requestedMCPTools)) {
+  // Sort by server name for deterministic ordering (important for cache consistency)
+  for (const [serverName, toolConfigs] of Object.entries(requestedMCPTools).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     index++;
     /** @type {LCAvailableTools} */
     let availableTools;
