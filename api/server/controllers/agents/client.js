@@ -440,7 +440,6 @@ class AgentClient extends BaseClient {
       }
 
       this.options.agent.instructions = systemBlocks;
-      logger.debug('[AgentClient] Using multi-block system prompt for Anthropic cache sharing');
     } else {
       // Other providers or no cache support: use string format
       const systemContent = [sharedContent, userSpecificContent].filter(Boolean).join('\n\n');
@@ -893,29 +892,61 @@ class AgentClient extends BaseClient {
           .join('\n')
           .trim();
 
-        let systemContent = [
-          systemMessage,
-          agent.instructions ?? '',
-          i !== 0 ? (agent.additional_instructions ?? '') : '',
-        ]
-          .join('\n')
-          .trim();
+        // Handle array format (Anthropic multi-block) vs string format (other providers)
+        let systemContent;
+        let systemContentString; // For noSystemMessages fallback
+        if (Array.isArray(agent.instructions)) {
+          // Array format: maintain structure for Anthropic prompt caching
+          // Filter out blocks with empty or missing text
+          const validBlocks = agent.instructions.filter(
+            (block) => block.text && typeof block.text === 'string' && block.text.trim(),
+          );
+          if (systemMessage) {
+            // Prepend toolContextMap as first block
+            systemContent = [{ type: 'text', text: systemMessage }, ...validBlocks];
+          } else {
+            systemContent = validBlocks;
+          }
+          // additional_instructions already processed in buildMessages()
+          // Create string version for noSystemMessages fallback
+          systemContentString = [systemMessage, ...validBlocks.map((block) => block.text)]
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+        } else {
+          // String format: other providers
+          systemContent = [
+            systemMessage,
+            agent.instructions ?? '',
+            i !== 0 ? (agent.additional_instructions ?? '') : '',
+          ]
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+          systemContentString = systemContent;
+        }
 
         if (noSystemMessages === true) {
           agent.instructions = undefined;
           agent.additional_instructions = undefined;
         } else {
-          agent.instructions = systemContent;
+          // Don't set empty array - only set if there's actual content
+          const hasContent = Array.isArray(systemContent)
+            ? systemContent.length > 0
+            : systemContent && systemContent.trim();
+          agent.instructions = hasContent ? systemContent : undefined;
           agent.additional_instructions = undefined;
         }
 
-        if (noSystemMessages === true && systemContent?.length) {
+        if (noSystemMessages === true && systemContentString?.length) {
           const latestMessageContent = _messages.pop().content;
           if (typeof latestMessageContent !== 'string') {
-            latestMessageContent[0].text = [systemContent, latestMessageContent[0].text].join('\n');
+            latestMessageContent[0].text = [systemContentString, latestMessageContent[0].text].join(
+              '\n',
+            );
             _messages.push(new HumanMessage({ content: latestMessageContent }));
           } else {
-            const text = [systemContent, latestMessageContent].join('\n');
+            const text = [systemContentString, latestMessageContent].join('\n');
             _messages.push(new HumanMessage(text));
           }
         }
