@@ -97,17 +97,41 @@ export async function createRun({
       agent.model_parameters,
     );
 
-    const systemMessage = Object.values(agent.toolContextMap ?? {})
+    const toolContextContent = Object.values(agent.toolContextMap ?? {})
       .join('\n')
       .trim();
 
-    const systemContent = [
-      systemMessage,
-      agent.instructions ?? '',
-      agent.additional_instructions ?? '',
-    ]
-      .join('\n')
-      .trim();
+    // Handle both array (Anthropic multi-block) and string formats for instructions
+    let systemContent: string | Array<{ type: string; text: string; cache_control?: { type: string } }>;
+
+    if (Array.isArray(agent.instructions)) {
+      // Anthropic multi-block format: filter out blocks with empty or missing text
+      const validBlocks = (agent.instructions as Array<{ type: string; text: string; cache_control?: { type: string } }>).filter(
+        (block) => block && block.text && typeof block.text === 'string' && block.text.trim(),
+      );
+
+      if (toolContextContent) {
+        // Prepend toolContextMap as first block
+        systemContent = [{ type: 'text', text: toolContextContent }, ...validBlocks];
+      } else {
+        systemContent = validBlocks;
+      }
+
+      // If no valid blocks, fall back to undefined
+      if (systemContent.length === 0) {
+        systemContent = toolContextContent || '';
+      }
+    } else {
+      // String format (other providers): join all parts
+      systemContent = [
+        toolContextContent,
+        agent.instructions ?? '',
+        agent.additional_instructions ?? '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+    }
 
     /**
      * Resolve request-based headers for Custom Endpoints. Note: if this is added to

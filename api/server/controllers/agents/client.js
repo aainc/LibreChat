@@ -305,7 +305,17 @@ class AgentClient extends BaseClient {
      * Shared content: cacheable across users (base instructions, additional instructions, MCP)
      * @type {string}
      */
-    let sharedContent = [instructions ?? '', additional_instructions ?? '']
+    // Handle instructions that might already be in array format (from previous calls)
+    let instructionsText = instructions;
+    if (Array.isArray(instructions)) {
+      // Extract text content from array format (Anthropic multi-block)
+      instructionsText = instructions
+        .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+        .map((block) => block.text)
+        .join('\n');
+    }
+
+    let sharedContent = [instructionsText ?? '', additional_instructions ?? '']
       .filter(Boolean)
       .join('\n')
       .trim();
@@ -498,6 +508,9 @@ class AgentClient extends BaseClient {
           // No cache_control = not cached (user-specific content)
         });
       }
+
+      // Debug logging
+      logger.debug('[buildMessages] systemBlocks:', JSON.stringify(systemBlocks.map((b) => ({ type: b.type, textType: typeof b.text, textLength: b.text?.length, hasCache: !!b.cache_control }))));
 
       this.options.agent.instructions = systemBlocks;
     } else {
