@@ -1,0 +1,138 @@
+diff --git a/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs b/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs
+index 87945a7..740ba86 100644
+--- a/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs
+@@ -247,15 +247,22 @@ class StandardGraph extends Graph {
+             (clientOptions.clientOptions
+                 ?.defaultHeaders?.['anthropic-beta']?.includes('prompt-caching') ??
+                 false)) {
+-            finalInstructions = {
+-                content: [
+-                    {
+-                        type: 'text',
+-                        text: instructions,
+-                        cache_control: { type: 'ephemeral' },
+-                    },
+-                ],
+-            };
++            // If instructions is already an array (multi-block format), use it directly
++            if (Array.isArray(instructions)) {
++                finalInstructions = {
++                    content: instructions,
++                };
++            } else {
++                finalInstructions = {
++                    content: [
++                        {
++                            type: 'text',
++                            text: instructions,
++                            cache_control: { type: 'ephemeral' },
++                        },
++                    ],
++                };
++            }
+         }
+         if (finalInstructions != null && finalInstructions !== '') {
+             const systemMessage = new messages.SystemMessage(finalInstructions);
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
+index e9817e6..01fb105 100644
+--- a/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
+@@ -213,6 +213,28 @@ class CustomAnthropic extends anthropic.ChatAnthropicMessages {
+         const coerceContentToString = !_toolsInParams(payload) &&
+             !_documentsInParams(payload) &&
+             !_thinkingInParams(payload);
++
++        // Add extended cache TTL (1 hour) to system message cache_control blocks
++        if (payload.system && Array.isArray(payload.system)) {
++            const betaHeaders =
++                this.clientOptions?.defaultHeaders?.['anthropic-beta'] ||
++                options.headers?.['anthropic-beta'] ||
++                '';
++            const hasCacheControl = betaHeaders.includes('prompt-caching');
++            const hasExtendedTTL = betaHeaders.includes('extended-cache-ttl');
++
++            if (hasCacheControl && hasExtendedTTL) {
++                payload.system = payload.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        }
+         const stream = await this.createStreamWithRetry(payload, {
+             headers: options.headers,
+         });
+diff --git a/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs b/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs
+index 1fa83b4..2e233a6 100644
+--- a/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs
++++ b/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs
+@@ -245,15 +245,22 @@ class StandardGraph extends Graph {
+             (clientOptions.clientOptions
+                 ?.defaultHeaders?.['anthropic-beta']?.includes('prompt-caching') ??
+                 false)) {
+-            finalInstructions = {
+-                content: [
+-                    {
+-                        type: 'text',
+-                        text: instructions,
+-                        cache_control: { type: 'ephemeral' },
+-                    },
+-                ],
+-            };
++            // If instructions is already an array (multi-block format), use it directly
++            if (Array.isArray(instructions)) {
++                finalInstructions = {
++                    content: instructions,
++                };
++            } else {
++                finalInstructions = {
++                    content: [
++                        {
++                            type: 'text',
++                            text: instructions,
++                            cache_control: { type: 'ephemeral' },
++                        },
++                    ],
++                };
++            }
+         }
+         if (finalInstructions != null && finalInstructions !== '') {
+             const systemMessage = new SystemMessage(finalInstructions);
+diff --git a/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
+index 2e6e2c3..af5557b 100644
+--- a/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
++++ b/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
+@@ -211,6 +211,28 @@ class CustomAnthropic extends ChatAnthropicMessages {
+         const coerceContentToString = !_toolsInParams(payload) &&
+             !_documentsInParams(payload) &&
+             !_thinkingInParams(payload);
++
++        // Add extended cache TTL (1 hour) to system message cache_control blocks
++        if (payload.system && Array.isArray(payload.system)) {
++            const betaHeaders =
++                this.clientOptions?.defaultHeaders?.['anthropic-beta'] ||
++                options.headers?.['anthropic-beta'] ||
++                '';
++            const hasCacheControl = betaHeaders.includes('prompt-caching');
++            const hasExtendedTTL = betaHeaders.includes('extended-cache-ttl');
++
++            if (hasCacheControl && hasExtendedTTL) {
++                payload.system = payload.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        }
+         const stream = await this.createStreamWithRetry(payload, {
+             headers: options.headers,
+         });
