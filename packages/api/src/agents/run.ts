@@ -107,7 +107,11 @@ export async function createRun({
     if (Array.isArray(agent.instructions)) {
       // Anthropic multi-block format: filter out blocks with empty or missing text
       const validBlocks = (agent.instructions as Array<{ type: string; text: string; cache_control?: { type: string } }>).filter(
-        (block) => block && block.text && typeof block.text === 'string' && block.text.trim(),
+        (block) =>
+          block != null &&
+          typeof block === 'object' &&
+          typeof block.text === 'string' &&
+          block.text.trim().length > 0,
       );
 
       if (toolContextContent) {
@@ -117,8 +121,8 @@ export async function createRun({
         systemContent = validBlocks;
       }
 
-      // If no valid blocks, fall back to undefined
-      if (systemContent.length === 0) {
+      // If no valid blocks, fall back to string format
+      if (!Array.isArray(systemContent) || systemContent.length === 0) {
         systemContent = toolContextContent || '';
       }
     } else {
