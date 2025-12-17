@@ -488,17 +488,6 @@ class AgentClient extends BaseClient {
       this.options.agent.model_parameters?.configuration?.defaultHeaders;
     const supportsPromptCaching = defaultHeaders?.['anthropic-beta']?.includes('prompt-caching');
 
-    // Debug: log values before condition
-    logger.info('[buildMessages] DEBUG:', JSON.stringify({
-      supportsPromptCaching,
-      sharedContentType: typeof sharedContent,
-      sharedContentLength: sharedContent?.length,
-      sharedContentTruthy: !!sharedContent,
-      userSpecificContentType: typeof userSpecificContent,
-      userSpecificContentLength: userSpecificContent?.length,
-      userSpecificContentTruthy: !!userSpecificContent,
-    }));
-
     if (supportsPromptCaching && (sharedContent || userSpecificContent)) {
       // Anthropic with prompt caching: use multi-block format for optimal cache sharing
       /** @type {Array<{type: string, text: string, cache_control?: {type: string}}>} */
@@ -519,9 +508,6 @@ class AgentClient extends BaseClient {
           // No cache_control = not cached (user-specific content)
         });
       }
-
-      // Debug logging (temporarily info level for production debugging)
-      logger.info('[buildMessages] systemBlocks:', JSON.stringify(systemBlocks));
 
       this.options.agent.instructions = systemBlocks;
     } else {

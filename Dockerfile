@@ -25,6 +25,8 @@ COPY --chown=node:node client/package.json ./client/package.json
 COPY --chown=node:node packages/data-provider/package.json ./packages/data-provider/package.json
 COPY --chown=node:node packages/data-schemas/package.json ./packages/data-schemas/package.json
 COPY --chown=node:node packages/api/package.json ./packages/api/package.json
+# Copy patches directory for patch-package to apply during npm ci
+COPY --chown=node:node patches ./patches
 
 RUN \
     # Allow mounting of these files, which have no default
