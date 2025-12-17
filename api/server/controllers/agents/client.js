@@ -301,11 +301,30 @@ class AgentClient extends BaseClient {
     /** @type {number | undefined} */
     let promptTokens;
 
-    /** @type {string} */
-    let systemContent = [instructions ?? '', additional_instructions ?? '']
+    /**
+     * Shared content: cacheable across users (base instructions, additional instructions, MCP)
+     * @type {string}
+     */
+    // Handle instructions that might already be in array format (from previous calls)
+    let instructionsText = instructions;
+    if (Array.isArray(instructions)) {
+      // Extract text content from array format (Anthropic multi-block)
+      instructionsText = instructions
+        .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+        .map((block) => block.text)
+        .join('\n');
+    }
+
+    let sharedContent = [instructionsText ?? '', additional_instructions ?? '']
       .filter(Boolean)
       .join('\n')
       .trim();
+
+    /**
+     * User-specific content: not cached (RAG/file context, OCR, memory)
+     * @type {string}
+     */
+    let userSpecificContent = '';
 
     if (this.options.attachments) {
       const attachments = await this.options.attachments;
@@ -350,7 +369,8 @@ class AgentClient extends BaseClient {
             : formattedMessage.content.unshift({ type: 'text', text: message.fileContext });
         }
       } else if (message.fileContext && i === orderedMessages.length - 1) {
-        systemContent = [systemContent, message.fileContext].join('\n');
+        // File context from user's uploaded files goes to user-specific content (not cached)
+        userSpecificContent = [userSpecificContent, message.fileContext].filter(Boolean).join('\n');
       }
 
       const needsTokenCount =
@@ -383,12 +403,17 @@ class AgentClient extends BaseClient {
       return formattedMessage;
     });
 
+    // RAG/file context goes to user-specific content (not cached)
     if (this.contextHandlers) {
       this.augmentedPrompt = await this.contextHandlers.createContext();
-      systemContent = this.augmentedPrompt + systemContent;
+      if (this.augmentedPrompt) {
+        userSpecificContent = [this.augmentedPrompt, userSpecificContent]
+          .filter(Boolean)
+          .join('\n');
+      }
     }
 
-    // Inject MCP server instructions if available
+    // Inject MCP server instructions into shared content (cached)
     const ephemeralAgent = this.options.req.body.ephemeralAgent;
     let mcpServers = [];
 
@@ -408,19 +433,17 @@ class AgentClient extends BaseClient {
     }
 
     if (mcpServers.length > 0) {
+      // Sort for deterministic ordering (important for cache consistency)
+      mcpServers = [...mcpServers].sort((a, b) => a.localeCompare(b));
       try {
         const mcpInstructions = await getMCPManager().formatInstructionsForContext(mcpServers);
         if (mcpInstructions) {
-          systemContent = [systemContent, mcpInstructions].filter(Boolean).join('\n\n');
+          sharedContent = [sharedContent, mcpInstructions].filter(Boolean).join('\n\n');
           logger.debug('[AgentClient] Injected MCP instructions for servers:', mcpServers);
         }
       } catch (error) {
         logger.error('[AgentClient] Failed to inject MCP instructions:', error);
       }
-    }
-
-    if (systemContent) {
-      this.options.agent.instructions = systemContent;
     }
 
     /** @type {Record<string, number> | undefined} */
@@ -448,13 +471,51 @@ class AgentClient extends BaseClient {
       opts.getReqData({ promptTokens });
     }
 
+    // Memory goes to user-specific content (not cached)
     const withoutKeys = await this.useMemory();
     if (withoutKeys) {
-      systemContent += `${memoryInstructions}\n\n# Existing memory about the user:\n${withoutKeys}`;
+      userSpecificContent = [
+        userSpecificContent,
+        `${memoryInstructions}\n\n# Existing memory about the user:\n${withoutKeys}`,
+      ]
+        .filter(Boolean)
+        .join('\n\n');
     }
 
-    if (systemContent) {
-      this.options.agent.instructions = systemContent;
+    // Determine if this is Anthropic with prompt caching support
+    const defaultHeaders =
+      this.options.agent.model_parameters?.clientOptions?.defaultHeaders ??
+      this.options.agent.model_parameters?.configuration?.defaultHeaders;
+    const supportsPromptCaching = defaultHeaders?.['anthropic-beta']?.includes('prompt-caching');
+
+    if (supportsPromptCaching && (sharedContent || userSpecificContent)) {
+      // Anthropic with prompt caching: use multi-block format for optimal cache sharing
+      /** @type {Array<{type: string, text: string, cache_control?: {type: string}}>} */
+      const systemBlocks = [];
+
+      if (sharedContent) {
+        systemBlocks.push({
+          type: 'text',
+          text: sharedContent,
+          cache_control: { type: 'ephemeral' },
+        });
+      }
+
+      if (userSpecificContent) {
+        systemBlocks.push({
+          type: 'text',
+          text: userSpecificContent,
+          // No cache_control = not cached (user-specific content)
+        });
+      }
+
+      this.options.agent.instructions = systemBlocks;
+    } else {
+      // Other providers or no cache support: use string format
+      const systemContent = [sharedContent, userSpecificContent].filter(Boolean).join('\n\n');
+      if (systemContent) {
+        this.options.agent.instructions = systemContent;
+      }
     }
 
     return result;

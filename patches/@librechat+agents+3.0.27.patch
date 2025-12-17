@@ -1,0 +1,314 @@
+diff --git a/node_modules/@librechat/agents/dist/cjs/agents/AgentContext.cjs b/node_modules/@librechat/agents/dist/cjs/agents/AgentContext.cjs
+index 3d47d41..f4b2769 100644
+--- a/node_modules/@librechat/agents/dist/cjs/agents/AgentContext.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/agents/AgentContext.cjs
+@@ -124,27 +124,39 @@ class AgentContext {
+      */
+     createSystemRunnable() {
+         let finalInstructions = this.instructions;
+-        if (this.additionalInstructions != null &&
+-            this.additionalInstructions !== '') {
+-            finalInstructions =
+-                finalInstructions != null && finalInstructions
+-                    ? `${finalInstructions}\n\n${this.additionalInstructions}`
+-                    : this.additionalInstructions;
+-        }
+-        // Handle Anthropic prompt caching
+-        if (finalInstructions != null &&
+-            finalInstructions !== '' &&
+-            this.provider === _enum.Providers.ANTHROPIC) {
+-            const anthropicOptions = this.clientOptions;
+-            const defaultHeaders = anthropicOptions?.clientOptions?.defaultHeaders;
+-            const anthropicBeta = defaultHeaders?.['anthropic-beta'];
+-            if (typeof anthropicBeta === 'string' &&
+-                anthropicBeta.includes('prompt-caching')) {
++
++        // Check if this is Anthropic with prompt-caching
++        const anthropicOptions = this.clientOptions;
++        const defaultHeaders = anthropicOptions?.clientOptions?.defaultHeaders;
++        const anthropicBeta = defaultHeaders?.['anthropic-beta'];
++        const isAnthropicWithCaching =
++            this.provider === _enum.Providers.ANTHROPIC &&
++            typeof anthropicBeta === 'string' &&
++            anthropicBeta.includes('prompt-caching');
++
++        // Handle array format FIRST, before any string operations
++        if (isAnthropicWithCaching && Array.isArray(this.instructions)) {
++            // Array format for Anthropic - pass through directly without string concatenation
++            // additional_instructions should already be incorporated by the caller
++            finalInstructions = {
++                content: this.instructions,
++            };
++        } else {
++            // String format - safe to do string operations
++            if (this.additionalInstructions != null &&
++                this.additionalInstructions !== '') {
++                finalInstructions =
++                    finalInstructions != null && finalInstructions
++                        ? `${finalInstructions}\n\n${this.additionalInstructions}`
++                        : this.additionalInstructions;
++            }
++            // Wrap in content object for Anthropic with caching (string format only)
++            if (isAnthropicWithCaching && finalInstructions != null && finalInstructions) {
+                 finalInstructions = {
+                     content: [
+                         {
+                             type: 'text',
+-                            text: this.instructions,
++                            text: finalInstructions,
+                             cache_control: { type: 'ephemeral' },
+                         },
+                     ],
+diff --git a/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs b/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs
+index 87945a7..6b945a6 100644
+--- a/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/graphs/Graph.cjs
+@@ -235,27 +235,42 @@ class StandardGraph extends Graph {
+     /* Graph */
+     createSystemRunnable({ provider, clientOptions, instructions, additional_instructions, }) {
+         let finalInstructions = instructions;
+-        if (additional_instructions != null && additional_instructions !== '') {
+-            finalInstructions =
+-                finalInstructions != null && finalInstructions
+-                    ? `${finalInstructions}\n\n${additional_instructions}`
+-                    : additional_instructions;
+-        }
+-        if (finalInstructions != null &&
+-            finalInstructions &&
++
++        // Check if this is Anthropic with prompt-caching
++        const isAnthropicWithCaching =
+             provider === _enum.Providers.ANTHROPIC &&
+             (clientOptions.clientOptions
+                 ?.defaultHeaders?.['anthropic-beta']?.includes('prompt-caching') ??
+-                false)) {
++                false);
++
++        // Handle array format FIRST, before any string operations
++        if (isAnthropicWithCaching && Array.isArray(instructions)) {
++            // Array format for Anthropic - pass through directly without string concatenation
++            // additional_instructions should already be incorporated by the caller
+             finalInstructions = {
+-                content: [
+-                    {
+-                        type: 'text',
+-                        text: instructions,
+-                        cache_control: { type: 'ephemeral' },
+-                    },
+-                ],
++                content: instructions,
+             };
++        } else {
++            // String format - safe to do string operations
++            if (additional_instructions != null && additional_instructions !== '') {
++                finalInstructions =
++                    finalInstructions != null && finalInstructions
++                        ? `${finalInstructions}\n\n${additional_instructions}`
++                        : additional_instructions;
++            }
++
++            // Wrap in content object for Anthropic with caching (string format only)
++            if (isAnthropicWithCaching && finalInstructions != null && finalInstructions) {
++                finalInstructions = {
++                    content: [
++                        {
++                            type: 'text',
++                            text: finalInstructions,
++                            cache_control: { type: 'ephemeral' },
++                        },
++                    ],
++                };
++            }
+         }
+         if (finalInstructions != null && finalInstructions !== '') {
+             const systemMessage = new messages.SystemMessage(finalInstructions);
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
+index e9817e6..04f3670 100644
+--- a/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/llm/anthropic/index.cjs
+@@ -213,6 +213,28 @@ class CustomAnthropic extends anthropic.ChatAnthropicMessages {
+         const coerceContentToString = !_toolsInParams(payload) &&
+             !_documentsInParams(payload) &&
+             !_thinkingInParams(payload);
++
++        // Add extended cache TTL (1 hour) to system message cache_control blocks
++        // TTL 1h extends cache lifetime from 5 minutes to 1 hour for better cost efficiency
++        if (payload.system && Array.isArray(payload.system)) {
++            const betaHeaders =
++                this.clientOptions?.defaultHeaders?.['anthropic-beta'] ||
++                options.headers?.['anthropic-beta'] ||
++                '';
++            const hasCacheControl = betaHeaders.includes('prompt-caching');
++
++            if (hasCacheControl) {
++                payload.system = payload.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        }
+         const stream = await this.createStreamWithRetry(payload, {
+             headers: options.headers,
+         });
+diff --git a/node_modules/@librechat/agents/dist/esm/agents/AgentContext.mjs b/node_modules/@librechat/agents/dist/esm/agents/AgentContext.mjs
+index 17514df..1476da9 100644
+--- a/node_modules/@librechat/agents/dist/esm/agents/AgentContext.mjs
++++ b/node_modules/@librechat/agents/dist/esm/agents/AgentContext.mjs
+@@ -122,27 +122,39 @@ class AgentContext {
+      */
+     createSystemRunnable() {
+         let finalInstructions = this.instructions;
+-        if (this.additionalInstructions != null &&
+-            this.additionalInstructions !== '') {
+-            finalInstructions =
+-                finalInstructions != null && finalInstructions
+-                    ? `${finalInstructions}\n\n${this.additionalInstructions}`
+-                    : this.additionalInstructions;
+-        }
+-        // Handle Anthropic prompt caching
+-        if (finalInstructions != null &&
+-            finalInstructions !== '' &&
+-            this.provider === Providers.ANTHROPIC) {
+-            const anthropicOptions = this.clientOptions;
+-            const defaultHeaders = anthropicOptions?.clientOptions?.defaultHeaders;
+-            const anthropicBeta = defaultHeaders?.['anthropic-beta'];
+-            if (typeof anthropicBeta === 'string' &&
+-                anthropicBeta.includes('prompt-caching')) {
++
++        // Check if this is Anthropic with prompt-caching
++        const anthropicOptions = this.clientOptions;
++        const defaultHeaders = anthropicOptions?.clientOptions?.defaultHeaders;
++        const anthropicBeta = defaultHeaders?.['anthropic-beta'];
++        const isAnthropicWithCaching =
++            this.provider === Providers.ANTHROPIC &&
++            typeof anthropicBeta === 'string' &&
++            anthropicBeta.includes('prompt-caching');
++
++        // Handle array format FIRST, before any string operations
++        if (isAnthropicWithCaching && Array.isArray(this.instructions)) {
++            // Array format for Anthropic - pass through directly without string concatenation
++            // additional_instructions should already be incorporated by the caller
++            finalInstructions = {
++                content: this.instructions,
++            };
++        } else {
++            // String format - safe to do string operations
++            if (this.additionalInstructions != null &&
++                this.additionalInstructions !== '') {
++                finalInstructions =
++                    finalInstructions != null && finalInstructions
++                        ? `${finalInstructions}\n\n${this.additionalInstructions}`
++                        : this.additionalInstructions;
++            }
++            // Wrap in content object for Anthropic with caching (string format only)
++            if (isAnthropicWithCaching && finalInstructions != null && finalInstructions) {
+                 finalInstructions = {
+                     content: [
+                         {
+                             type: 'text',
+-                            text: this.instructions,
++                            text: finalInstructions,
+                             cache_control: { type: 'ephemeral' },
+                         },
+                     ],
+diff --git a/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs b/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs
+index 1fa83b4..eeb9bd6 100644
+--- a/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs
++++ b/node_modules/@librechat/agents/dist/esm/graphs/Graph.mjs
+@@ -233,27 +233,42 @@ class StandardGraph extends Graph {
+     /* Graph */
+     createSystemRunnable({ provider, clientOptions, instructions, additional_instructions, }) {
+         let finalInstructions = instructions;
+-        if (additional_instructions != null && additional_instructions !== '') {
+-            finalInstructions =
+-                finalInstructions != null && finalInstructions
+-                    ? `${finalInstructions}\n\n${additional_instructions}`
+-                    : additional_instructions;
+-        }
+-        if (finalInstructions != null &&
+-            finalInstructions &&
++
++        // Check if this is Anthropic with prompt-caching
++        const isAnthropicWithCaching =
+             provider === Providers.ANTHROPIC &&
+             (clientOptions.clientOptions
+                 ?.defaultHeaders?.['anthropic-beta']?.includes('prompt-caching') ??
+-                false)) {
++                false);
++
++        // Handle array format FIRST, before any string operations
++        if (isAnthropicWithCaching && Array.isArray(instructions)) {
++            // Array format for Anthropic - pass through directly without string concatenation
++            // additional_instructions should already be incorporated by the caller
+             finalInstructions = {
+-                content: [
+-                    {
+-                        type: 'text',
+-                        text: instructions,
+-                        cache_control: { type: 'ephemeral' },
+-                    },
+-                ],
++                content: instructions,
+             };
++        } else {
++            // String format - safe to do string operations
++            if (additional_instructions != null && additional_instructions !== '') {
++                finalInstructions =
++                    finalInstructions != null && finalInstructions
++                        ? `${finalInstructions}\n\n${additional_instructions}`
++                        : additional_instructions;
++            }
++
++            // Wrap in content object for Anthropic with caching (string format only)
++            if (isAnthropicWithCaching && finalInstructions != null && finalInstructions) {
++                finalInstructions = {
++                    content: [
++                        {
++                            type: 'text',
++                            text: finalInstructions,
++                            cache_control: { type: 'ephemeral' },
++                        },
++                    ],
++                };
++            }
+         }
+         if (finalInstructions != null && finalInstructions !== '') {
+             const systemMessage = new SystemMessage(finalInstructions);
+diff --git a/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
+index 2e6e2c3..f8e1ec2 100644
+--- a/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
++++ b/node_modules/@librechat/agents/dist/esm/llm/anthropic/index.mjs
+@@ -211,6 +211,28 @@ class CustomAnthropic extends ChatAnthropicMessages {
+         const coerceContentToString = !_toolsInParams(payload) &&
+             !_documentsInParams(payload) &&
+             !_thinkingInParams(payload);
++
++        // Add extended cache TTL (1 hour) to system message cache_control blocks
++        // TTL 1h extends cache lifetime from 5 minutes to 1 hour for better cost efficiency
++        if (payload.system && Array.isArray(payload.system)) {
++            const betaHeaders =
++                this.clientOptions?.defaultHeaders?.['anthropic-beta'] ||
++                options.headers?.['anthropic-beta'] ||
++                '';
++            const hasCacheControl = betaHeaders.includes('prompt-caching');
++
++            if (hasCacheControl) {
++                payload.system = payload.system.map(item => {
++                    if (item.cache_control && !item.cache_control.ttl) {
++                        return {
++                            ...item,
++                            cache_control: { ...item.cache_control, ttl: '1h' }
++                        };
++                    }
++                    return item;
++                });
++            }
++        }
+         const stream = await this.createStreamWithRetry(payload, {
+             headers: options.headers,
+         });
