@@ -509,8 +509,8 @@ class AgentClient extends BaseClient {
         });
       }
 
-      // Debug logging
-      logger.debug('[buildMessages] systemBlocks:', JSON.stringify(systemBlocks.map((b) => ({ type: b.type, textType: typeof b.text, textLength: b.text?.length, hasCache: !!b.cache_control }))));
+      // Debug logging (temporarily info level for production debugging)
+      logger.info('[buildMessages] systemBlocks:', JSON.stringify(systemBlocks.map((b) => ({ type: b.type, textType: typeof b.text, textLength: b.text?.length, hasCache: !!b.cache_control }))));
 
       this.options.agent.instructions = systemBlocks;
     } else {
