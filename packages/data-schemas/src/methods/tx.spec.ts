@@ -1419,14 +1419,14 @@ describe('getCacheMultiplier', () => {
       }
     });
 
-    it('uses the 1h write rate for Anthropic models when env is set to 1h', () => {
+    it('uses the 1h write rate for Anthropic-endpoint usage when env is set to 1h', () => {
       process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
       const anthropicKeys = Object.keys(cacheTokenValues).filter(
         (key) => cacheTokenValues[key].write1h != null,
       );
       expect(anthropicKeys.length).toBeGreaterThan(0);
       for (const valueKey of anthropicKeys) {
-        expect(getCacheMultiplier({ valueKey, cacheType: 'write' })).toBe(
+        expect(getCacheMultiplier({ valueKey, cacheType: 'write', endpoint: 'anthropic' })).toBe(
           cacheTokenValues[valueKey].write1h,
         );
       }
@@ -1434,21 +1434,51 @@ describe('getCacheMultiplier', () => {
 
     it('keeps read rates unchanged when env is set to 1h', () => {
       process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
-      expect(getCacheMultiplier({ valueKey: 'claude-sonnet-4-6', cacheType: 'read' })).toBe(
-        cacheTokenValues['claude-sonnet-4-6'].read,
-      );
-      expect(getCacheMultiplier({ valueKey: 'claude-opus-4-8', cacheType: 'read' })).toBe(
-        cacheTokenValues['claude-opus-4-8'].read,
-      );
+      expect(
+        getCacheMultiplier({
+          valueKey: 'claude-sonnet-4-6',
+          cacheType: 'read',
+          endpoint: 'anthropic',
+        }),
+      ).toBe(cacheTokenValues['claude-sonnet-4-6'].read);
+      expect(
+        getCacheMultiplier({
+          valueKey: 'claude-opus-4-8',
+          cacheType: 'read',
+          endpoint: 'anthropic',
+        }),
+      ).toBe(cacheTokenValues['claude-opus-4-8'].read);
     });
 
     it('keeps the default 5m write rate when env is unset or 5m', () => {
       delete process.env.ANTHROPIC_PROMPT_CACHE_TTL;
-      expect(getCacheMultiplier({ valueKey: 'claude-sonnet-4-6', cacheType: 'write' })).toBe(
-        cacheTokenValues['claude-sonnet-4-6'].write,
-      );
+      expect(
+        getCacheMultiplier({
+          valueKey: 'claude-sonnet-4-6',
+          cacheType: 'write',
+          endpoint: 'anthropic',
+        }),
+      ).toBe(cacheTokenValues['claude-sonnet-4-6'].write);
 
       process.env.ANTHROPIC_PROMPT_CACHE_TTL = '5m';
+      expect(
+        getCacheMultiplier({
+          valueKey: 'claude-sonnet-4-6',
+          cacheType: 'write',
+          endpoint: 'anthropic',
+        }),
+      ).toBe(cacheTokenValues['claude-sonnet-4-6'].write);
+    });
+
+    it('keeps the 5m write rate for non-Anthropic endpoints (e.g. Bedrock) even when env is 1h', () => {
+      process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+      expect(
+        getCacheMultiplier({
+          valueKey: 'claude-sonnet-4-6',
+          cacheType: 'write',
+          endpoint: 'bedrock',
+        }),
+      ).toBe(cacheTokenValues['claude-sonnet-4-6'].write);
       expect(getCacheMultiplier({ valueKey: 'claude-sonnet-4-6', cacheType: 'write' })).toBe(
         cacheTokenValues['claude-sonnet-4-6'].write,
       );
@@ -1456,9 +1486,9 @@ describe('getCacheMultiplier', () => {
 
     it('does not affect models without a write1h rate', () => {
       process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
-      expect(getCacheMultiplier({ valueKey: 'gpt-4o', cacheType: 'write' })).toBe(
-        cacheTokenValues['gpt-4o'].write,
-      );
+      expect(
+        getCacheMultiplier({ valueKey: 'gpt-4o', cacheType: 'write', endpoint: 'openAI' }),
+      ).toBe(cacheTokenValues['gpt-4o'].write);
       expect(getCacheMultiplier({ valueKey: 'deepseek-chat', cacheType: 'write' })).toBe(
         cacheTokenValues['deepseek-chat'].write,
       );
@@ -1466,9 +1496,13 @@ describe('getCacheMultiplier', () => {
 
     it('applies the 1h write rate when valueKey is derived from the model', () => {
       process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
-      expect(getCacheMultiplier({ cacheType: 'write', model: 'claude-sonnet-4-6-20251101' })).toBe(
-        cacheTokenValues['claude-sonnet-4-6'].write1h,
-      );
+      expect(
+        getCacheMultiplier({
+          cacheType: 'write',
+          model: 'claude-sonnet-4-6-20251101',
+          endpoint: 'anthropic',
+        }),
+      ).toBe(cacheTokenValues['claude-sonnet-4-6'].write1h);
     });
 
     it('keeps endpointTokenConfig overrides authoritative over the 1h rate', () => {
@@ -1480,7 +1514,12 @@ describe('getCacheMultiplier', () => {
         },
       };
       expect(
-        getCacheMultiplier({ model: 'claude-sonnet-4-6', cacheType: 'write', endpointTokenConfig }),
+        getCacheMultiplier({
+          model: 'claude-sonnet-4-6',
+          cacheType: 'write',
+          endpoint: 'anthropic',
+          endpointTokenConfig,
+        }),
       ).toBe(endpointTokenConfig['claude-sonnet-4-6'].write);
     });
 

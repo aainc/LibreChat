@@ -227,6 +227,7 @@ export async function recordCollectedUsage(
         endpointTokenConfig,
         context: usageContext,
         model: usage.model ?? model,
+        endpoint: usage.provider,
       };
 
       if (useBulk) {

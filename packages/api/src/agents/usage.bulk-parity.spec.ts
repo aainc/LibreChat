@@ -554,4 +554,67 @@ describe('recordCollectedUsage — bulk path parity', () => {
       expect(mockUpdateBalance).not.toHaveBeenCalled();
     });
   });
+
+  describe('provider propagation (TTL-aware cache rates)', () => {
+    it('passes usage.provider as endpoint to getCacheMultiplier for structured usage', async () => {
+      const collectedUsage: UsageMetadata[] = [
+        {
+          input_tokens: 100,
+          output_tokens: 50,
+          model: 'claude-sonnet-4-6',
+          provider: 'anthropic',
+          cache_creation_input_tokens: 80,
+          cache_read_input_tokens: 20,
+        },
+      ];
+
+      await recordCollectedUsage(deps, { ...baseParams, collectedUsage });
+
+      expect(mockPricing.getCacheMultiplier).toHaveBeenCalledWith(
+        expect.objectContaining({ cacheType: 'write', endpoint: 'anthropic' }),
+      );
+      expect(mockPricing.getCacheMultiplier).toHaveBeenCalledWith(
+        expect.objectContaining({ cacheType: 'read', endpoint: 'anthropic' }),
+      );
+    });
+
+    it('does not leak endpoint into the inserted transaction docs', async () => {
+      const collectedUsage: UsageMetadata[] = [
+        {
+          input_tokens: 100,
+          output_tokens: 50,
+          model: 'claude-sonnet-4-6',
+          provider: 'anthropic',
+          cache_creation_input_tokens: 80,
+          cache_read_input_tokens: 20,
+        },
+      ];
+
+      await recordCollectedUsage(deps, { ...baseParams, collectedUsage });
+
+      expect(mockInsertMany).toHaveBeenCalledTimes(1);
+      const docs = mockInsertMany.mock.calls[0][0];
+      for (const doc of docs) {
+        expect(doc.endpoint).toBeUndefined();
+      }
+    });
+
+    it('passes undefined endpoint when usage has no provider', async () => {
+      const collectedUsage: UsageMetadata[] = [
+        {
+          input_tokens: 100,
+          output_tokens: 50,
+          model: 'claude-sonnet-4-6',
+          cache_creation_input_tokens: 80,
+          cache_read_input_tokens: 20,
+        },
+      ];
+
+      await recordCollectedUsage(deps, { ...baseParams, collectedUsage });
+
+      expect(mockPricing.getCacheMultiplier).toHaveBeenCalledWith(
+        expect.objectContaining({ cacheType: 'write', endpoint: undefined }),
+      );
+    });
+  });
 });

@@ -461,9 +461,17 @@ export function createTxMethods(_mongoose: typeof import('mongoose'), txDeps: Tx
   /**
    * Resolves the cache rate for a value key, honoring the extended 1h TTL write
    * rate (`write1h`) when `ANTHROPIC_PROMPT_CACHE_TTL=1h` is configured.
-   * Models without a `write1h` rate (non-Anthropic) are unaffected.
+   *
+   * The 1h rate only applies to usage from the Anthropic provider/endpoint —
+   * the only route that sends the TTL on requests (see packages/api
+   * endpoints/anthropic/llm.ts). Claude usage via other providers (e.g.
+   * Bedrock) and models without a `write1h` rate keep the default 5m rate.
    */
-  function getCacheRate(valueKey: string, cacheType: 'write' | 'read'): number | null {
+  function getCacheRate(
+    valueKey: string,
+    cacheType: 'write' | 'read',
+    endpoint?: string,
+  ): number | null {
     const entry = cacheTokenValues[valueKey];
     if (entry == null) {
       return null;
@@ -471,6 +479,7 @@ export function createTxMethods(_mongoose: typeof import('mongoose'), txDeps: Tx
     if (
       cacheType === 'write' &&
       entry.write1h != null &&
+      endpoint === 'anthropic' &&
       process.env.ANTHROPIC_PROMPT_CACHE_TTL === '1h'
     ) {
       return entry.write1h;
@@ -499,7 +508,7 @@ export function createTxMethods(_mongoose: typeof import('mongoose'), txDeps: Tx
     }
 
     if (valueKey && cacheType) {
-      return getCacheRate(valueKey, cacheType);
+      return getCacheRate(valueKey, cacheType, endpoint);
     }
 
     if (!cacheType || !model) {
@@ -511,7 +520,7 @@ export function createTxMethods(_mongoose: typeof import('mongoose'), txDeps: Tx
       return null;
     }
 
-    return getCacheRate(valueKey, cacheType);
+    return getCacheRate(valueKey, cacheType, endpoint);
   }
 
   return {
