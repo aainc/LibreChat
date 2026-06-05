@@ -28,11 +28,57 @@ ANTHROPIC_PROMPT_CACHE_TTL=1h
 ```
 
 Unset (default) keeps the 5m TTL. See
-`packages/api/src/endpoints/anthropic/llm.ts` for the wiring.
+`packages/api/src/endpoints/anthropic/llm.ts` for the wiring. The same
+variable also switches cost accounting to the 1h cache-write rate
+(2x base input) for Anthropic-provider usage — see
+`packages/data-schemas/src/methods/tx.ts` (`write1h`).
 
 > Note: 1h cache writes are billed at 2x base input (vs 1.25x for 5m).
 > Enable only when request gaps between 5 and 60 minutes are frequent
 > enough to pay for the higher write cost.
+
+## Docker Compose: build locally to get the fork (required for 1h TTL)
+
+The stock `docker-compose.yml` pulls the official prebuilt image
+(`registry.librechat.ai/danny-avila/librechat-dev:latest`), which is
+built from upstream and does **not** contain the forked
+`@librechat/agents` — with that image the TTL env var has no effect on
+requests. To run with the fork, build the image from this repository
+via an override file (see the "LOCAL BUILD" section in
+`docker-compose.override.yml.example`):
+
+```yaml
+# docker-compose.override.yml
+services:
+  api:
+    image: librechat
+    build:
+      context: .
+      target: node
+```
+
+Then add the TTL setting to your `.env` (read by the api service):
+
+```
+ANTHROPIC_PROMPT_CACHE_TTL=1h
+```
+
+And build + start:
+
+```bash
+docker compose build api
+docker compose up -d
+```
+
+The Dockerfile already COPYs `vendor/librechat-agents-*.tgz` before
+`npm ci`, so no extra step is needed. To confirm the running image
+contains the fork:
+
+```bash
+docker compose exec api node -e \
+  "console.log(require('@librechat/agents/package.json').version)"
+# -> 3.2.2-aainc.1
+```
 
 ## How to rebuild the tarball
 
