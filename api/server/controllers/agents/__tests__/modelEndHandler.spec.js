@@ -154,3 +154,36 @@ describe('ModelEndHandler — Vertex thoughtSignature capture (issue #13006 foll
     expect(() => new ModelEndHandler(null)).toThrow('collectedUsage must be an array');
   });
 });
+
+describe('ModelEndHandler — usage provider tagging', () => {
+  it('stamps agentContext.provider onto collected usage (drives TTL-aware cache rates)', async () => {
+    const collectedUsage = [];
+    const handler = new ModelEndHandler(collectedUsage);
+
+    await handler.handle(
+      'on_chat_model_end',
+      {
+        output: {
+          usage_metadata: {
+            input_tokens: 100,
+            output_tokens: 50,
+            total_tokens: 150,
+            cache_creation_input_tokens: 80,
+            cache_read_input_tokens: 20,
+          },
+        },
+      },
+      { ls_model_name: 'claude-sonnet-4-6', user_id: 'u1' },
+      {
+        getAgentContext: () => ({
+          provider: 'anthropic',
+          clientOptions: { model: 'claude-sonnet-4-6' },
+        }),
+      },
+    );
+
+    expect(collectedUsage).toHaveLength(1);
+    expect(collectedUsage[0].provider).toBe('anthropic');
+    expect(collectedUsage[0].model).toBe('claude-sonnet-4-6');
+  });
+});

@@ -7,6 +7,8 @@ export interface SpendTxData {
   conversationId?: string;
   model?: string;
   context?: string;
+  /** Provider/endpoint that produced the usage (e.g. 'anthropic', 'bedrock') — used for TTL-aware cache rates */
+  endpoint?: string;
   endpointTokenConfig?: Record<string, Record<string, number>> | null;
   balance?: { enabled?: boolean };
   transactions?: { enabled?: boolean };

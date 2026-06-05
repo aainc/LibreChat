@@ -30,6 +30,9 @@ COPY --chown=node:node client/package.json ./client/package.json
 COPY --chown=node:node packages/data-provider/package.json ./packages/data-provider/package.json
 COPY --chown=node:node packages/data-schemas/package.json ./packages/data-schemas/package.json
 COPY --chown=node:node packages/api/package.json ./packages/api/package.json
+# Vendored fork of @librechat/agents (prompt cache TTL support) must exist
+# before `npm ci` (api/ and packages/api reference it via file: spec)
+COPY --chown=node:node vendor/librechat-agents-3.2.2-aainc.1.tgz ./vendor/
 
 RUN \
     # Allow mounting of these files, which have no default

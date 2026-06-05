@@ -16,6 +16,7 @@ interface GetMultiplierParams {
 interface GetCacheMultiplierParams {
   cacheType: 'write' | 'read';
   model?: string;
+  endpoint?: string;
   endpointTokenConfig?: EndpointTokenConfig;
 }
 
@@ -30,6 +31,8 @@ interface BaseTxData {
   context: string;
   messageId?: string;
   conversationId: string;
+  /** Provider/endpoint that produced the usage (e.g. 'anthropic', 'bedrock') — used for TTL-aware cache rates */
+  endpoint?: string;
   endpointTokenConfig?: EndpointTokenConfig;
   balance?: Partial<TCustomConfig['balance']> | null;
   transactions?: Partial<TTransactionsConfig>;
@@ -79,6 +82,8 @@ export interface TxMetadata {
   context: string;
   messageId?: string;
   conversationId: string;
+  /** Provider/endpoint that produced the usage (e.g. 'anthropic', 'bedrock') — used for TTL-aware cache rates */
+  endpoint?: string;
   balance?: Partial<TCustomConfig['balance']> | null;
   transactions?: Partial<TTransactionsConfig>;
   endpointTokenConfig?: EndpointTokenConfig;
@@ -110,7 +115,7 @@ function calculateStructuredTokenValue(
   txData: StructuredTxData,
   pricing: PricingFns,
 ): { tokenValue: number; rate: number; rawAmount: number; rateDetail?: Record<string, number> } {
-  const { tokenType, model, endpointTokenConfig, inputTokenCount } = txData;
+  const { tokenType, model, endpoint, endpointTokenConfig, inputTokenCount } = txData;
 
   if (!tokenType) {
     return { tokenValue: txData.rawAmount ?? 0, rate: 0, rawAmount: txData.rawAmount ?? 0 };
@@ -124,10 +129,10 @@ function calculateStructuredTokenValue(
       inputTokenCount,
     });
     const writeMultiplier =
-      pricing.getCacheMultiplier({ cacheType: 'write', model, endpointTokenConfig }) ??
+      pricing.getCacheMultiplier({ cacheType: 'write', model, endpoint, endpointTokenConfig }) ??
       inputMultiplier;
     const readMultiplier =
-      pricing.getCacheMultiplier({ cacheType: 'read', model, endpointTokenConfig }) ??
+      pricing.getCacheMultiplier({ cacheType: 'read', model, endpoint, endpointTokenConfig }) ??
       inputMultiplier;
 
     const inputAbs = Math.abs(txData.inputTokens ?? 0);
@@ -182,7 +187,7 @@ function prepareStandardTx(
   },
   pricing: PricingFns,
 ): PreparedEntry | null {
-  const { balance, transactions, ...txData } = _txData;
+  const { balance, transactions, endpoint: _endpoint, ...txData } = _txData;
   if (txData.rawAmount != null && isNaN(txData.rawAmount)) {
     return null;
   }
@@ -205,13 +210,13 @@ function prepareStructuredTx(
   },
   pricing: PricingFns,
 ): PreparedEntry | null {
-  const { balance, transactions, ...txData } = _txData;
+  const { balance, transactions, endpoint, ...txData } = _txData;
   if (transactions?.enabled === false) {
     return null;
   }
 
   const { tokenValue, rate, rawAmount, rateDetail } = calculateStructuredTokenValue(
-    txData,
+    { ...txData, endpoint },
     pricing,
   );
   return {
