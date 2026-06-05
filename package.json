@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "prepare": "node -e \"import('husky').then((h) => h.default()).catch(() => {})\"",
+    "postinstall": "node -e \"try{require('./utils/aainc/postinstall.js')}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}\"",
     "update": "node config/update.js",
     "add-balance": "node config/add-balance.js",
     "set-balance": "node config/set-balance.js",
