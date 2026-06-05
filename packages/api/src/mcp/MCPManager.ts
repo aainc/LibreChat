@@ -270,8 +270,10 @@ export class MCPManager extends UserConnectionManager {
       return '';
     }
 
-    // Format instructions for context injection
+    // Format instructions for context injection (sorted by server name for deterministic
+    // ordering, which keeps prompt cache keys stable across requests)
     const formattedInstructions = Object.entries(instructionsToInclude)
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([serverName, instructions]) => {
         return `## ${serverName} MCP Server Instructions
 

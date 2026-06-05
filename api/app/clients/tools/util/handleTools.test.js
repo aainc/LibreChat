@@ -17,6 +17,7 @@ jest.mock('~/server/services/Config', () => ({
     filteredTools: [],
     includedTools: [],
   }),
+  getMCPServerTools: jest.fn().mockResolvedValue({}),
   getCachedTools: jest.fn().mockResolvedValue({
     // Default cached tools for tests
     dalle: {
@@ -30,7 +31,25 @@ jest.mock('~/server/services/Config', () => ({
   }),
 }));
 
+const mockCreateMCPTool = jest.fn();
+const mockCreateMCPTools = jest.fn();
+
+jest.mock('~/server/services/MCP', () => ({
+  createMCPTool: mockCreateMCPTool,
+  createMCPTools: mockCreateMCPTools,
+  createMCPPermissionContext: jest.fn(),
+  resolveConfigServers: jest.fn().mockResolvedValue(undefined),
+}));
+
+const mockGetServerConfig = jest.fn();
+
+jest.mock('~/config', () => ({
+  ...jest.requireActual('~/config'),
+  getMCPServersRegistry: jest.fn(() => ({ getServerConfig: mockGetServerConfig })),
+}));
+
 const { Calculator } = require('@librechat/agents');
+const { Constants } = require('librechat-data-provider');
 
 const { User } = require('~/db/models');
 const PluginService = require('~/server/services/PluginService');
@@ -281,6 +300,76 @@ describe('Tool Handlers', () => {
       const structuredTool = await toolFunctions['stable-diffusion']();
       expect(structuredTool).toBeInstanceOf(StructuredSD);
       delete process.env.SD_WEBUI_URL;
+    });
+
+    it('should initialize MCP servers in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTools.mockResolvedValue([]);
+
+      const tools = ['zebra', 'alpha', 'mango'].map(
+        (serverName) => `${Constants.mcp_all}${Constants.mcp_delimiter}${serverName}`,
+      );
+
+      await loadTools({
+        user: fakeUser._id,
+        tools,
+        options: {
+          mcpPermissionContext: { canUseServers: jest.fn().mockResolvedValue(true) },
+        },
+      });
+
+      const initializedOrder = mockCreateMCPTools.mock.calls.map(([params]) => params.serverName);
+      expect(initializedOrder).toEqual(['alpha', 'mango', 'zebra']);
+    });
+
+    it('should initialize tools within an MCP server in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTool.mockImplementation(({ toolKey }) => Promise.resolve({ name: toolKey }));
+
+      const tools = ['zebra', 'alpha', 'mango'].map(
+        (toolName) => `${toolName}${Constants.mcp_delimiter}serverA`,
+      );
+
+      const { loadedTools } = await loadTools({
+        user: fakeUser._id,
+        tools,
+        options: {
+          mcpPermissionContext: { canUseServers: jest.fn().mockResolvedValue(true) },
+        },
+      });
+
+      const expectedOrder = ['alpha', 'mango', 'zebra'].map(
+        (toolName) => `${toolName}${Constants.mcp_delimiter}serverA`,
+      );
+      expect(mockCreateMCPTool.mock.calls.map(([params]) => params.toolKey)).toEqual(expectedOrder);
+      expect(loadedTools.map((tool) => tool.name)).toEqual(expectedOrder);
+    });
+
+    it('should sort tools returned by an MCP server in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTools.mockResolvedValue([
+        { name: `zebra${Constants.mcp_delimiter}serverA` },
+        { name: `alpha${Constants.mcp_delimiter}serverA` },
+      ]);
+
+      const { loadedTools } = await loadTools({
+        user: fakeUser._id,
+        tools: [`${Constants.mcp_all}${Constants.mcp_delimiter}serverA`],
+        options: {
+          mcpPermissionContext: { canUseServers: jest.fn().mockResolvedValue(true) },
+        },
+      });
+
+      expect(loadedTools.map((tool) => tool.name)).toEqual([
+        `alpha${Constants.mcp_delimiter}serverA`,
+        `zebra${Constants.mcp_delimiter}serverA`,
+      ]);
     });
   });
 });
