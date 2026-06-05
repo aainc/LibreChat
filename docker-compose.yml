@@ -9,6 +9,7 @@ services:
     depends_on:
       - mongodb
       - rag_api
+      - code-interpreter
     image: registry.librechat.ai/danny-avila/librechat-dev:latest
     restart: always
     user: "${UID}:${GID}"
@@ -20,6 +21,8 @@ services:
       - MEILI_HOST=http://meilisearch:7700
       - RAG_PORT=${RAG_PORT:-8000}
       - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
+      - LIBRECHAT_CODE_API_KEY=${LIBRECHAT_CODE_API_KEY:-librechat}
+      - LIBRECHAT_CODE_BASEURL=http://code-interpreter:8000
     volumes:
       - type: bind
         source: ./.env
@@ -32,6 +35,8 @@ services:
     image: mongo:8.0.20
     restart: always
     user: "${UID}:${GID}"
+    ports:
+      - 27018:27017
     volumes:
       - ./data-node:/data/db
     command: mongod --noauth
@@ -67,6 +72,50 @@ services:
       - vectordb
     env_file:
       - .env
+  code-interpreter:
+    image: ghcr.io/thehapyone/code-interpreter:latest
+    container_name: code-interpreter
+    restart: unless-stopped
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    ports:
+      - "7000:8000"  # ← LibreChat推奨ポート
+    environment:
+      # 認証設定
+      - CODE_INTERPRETER_API_KEY=${LIBRECHAT_CODE_API_KEY:-librechat}
+      # 実行設定
+      - MAX_SESSIONS=${MAX_SESSIONS:-50}
+      - EXECUTION_TIMEOUT=${EXECUTION_TIMEOUT:-300}
+      - SUBPROCESS_MAX_MEMORY_MB=${SUBPROCESS_MAX_MEMORY_MB:-2048}
+      - SUBPROCESS_MAX_CPU_SECONDS=${SUBPROCESS_MAX_CPU_SECONDS:-60}
+      - BASH_STRICT_MODE=${BASH_STRICT_MODE:-true}
+      # ディレクトリ設定
+      - NOTEBOOKS_DIR=/app/notebooks
+      - UPLOADS_DIR=/app/uploads
+      # CORS設定
+      - CORS_ALLOW_ORIGINS=*
+      - LOG_REQUESTS=${LOG_REQUESTS:-false}
+    volumes:
+      - ./uploads:/app/uploads  # ← LibreChatと共有（重要）
+      - ./notebooks:/app/notebooks
+      - ./logs/code-interpreter:/app/logs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   pgdata2:
