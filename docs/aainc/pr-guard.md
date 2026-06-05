@@ -30,6 +30,17 @@ bash utils/aainc/setup-pr-guard.sh
 2. `git config remote.pushDefault origin` — push 先を origin (aainc) に固定
 3. フォーク元を指す remote が存在する場合、その push URL を無効化
 
+### npm install 時の自動適用
+
+セットアップスクリプトの実行忘れ対策として、`npm install` 実行時に同等のガード設定が
+`postinstall` フック（`utils/aainc/postinstall.js`）で自動適用される。
+
+- 適用内容は `setup-pr-guard.sh` と同等（`gh repo set-default` / `remote.pushDefault` /
+  フォーク元 remote の push 無効化）
+- CI 環境・git repo でない環境（tarball 展開 / Docker ビルド等）では何もせず skip する
+- gh 不在・未認証・origin 不一致などの異常時も **install は失敗させず**、警告表示に留める。
+  警告が出た場合は原因を解消のうえ `bash utils/aainc/setup-pr-guard.sh` を手動実行すること
+
 ## 運用ルール
 
 ### 1. upstream remote を追加しない
