@@ -17,6 +17,7 @@ jest.mock('~/server/services/Config', () => ({
     filteredTools: [],
     includedTools: [],
   }),
+  getMCPServerTools: jest.fn().mockResolvedValue({}),
   getCachedTools: jest.fn().mockResolvedValue({
     // Default cached tools for tests
     dalle: {
@@ -30,10 +31,11 @@ jest.mock('~/server/services/Config', () => ({
   }),
 }));
 
+const mockCreateMCPTool = jest.fn();
 const mockCreateMCPTools = jest.fn();
 
 jest.mock('~/server/services/MCP', () => ({
-  createMCPTool: jest.fn(),
+  createMCPTool: mockCreateMCPTool,
   createMCPTools: mockCreateMCPTools,
   createMCPPermissionContext: jest.fn(),
   resolveConfigServers: jest.fn().mockResolvedValue(undefined),
@@ -320,6 +322,54 @@ describe('Tool Handlers', () => {
 
       const initializedOrder = mockCreateMCPTools.mock.calls.map(([params]) => params.serverName);
       expect(initializedOrder).toEqual(['alpha', 'mango', 'zebra']);
+    });
+
+    it('should initialize tools within an MCP server in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTool.mockImplementation(({ toolKey }) => Promise.resolve({ name: toolKey }));
+
+      const tools = ['zebra', 'alpha', 'mango'].map(
+        (toolName) => `${toolName}${Constants.mcp_delimiter}serverA`,
+      );
+
+      const { loadedTools } = await loadTools({
+        user: fakeUser._id,
+        tools,
+        options: {
+          mcpPermissionContext: { canUseServers: jest.fn().mockResolvedValue(true) },
+        },
+      });
+
+      const expectedOrder = ['alpha', 'mango', 'zebra'].map(
+        (toolName) => `${toolName}${Constants.mcp_delimiter}serverA`,
+      );
+      expect(mockCreateMCPTool.mock.calls.map(([params]) => params.toolKey)).toEqual(expectedOrder);
+      expect(loadedTools.map((tool) => tool.name)).toEqual(expectedOrder);
+    });
+
+    it('should sort tools returned by an MCP server in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTools.mockResolvedValue([
+        { name: `zebra${Constants.mcp_delimiter}serverA` },
+        { name: `alpha${Constants.mcp_delimiter}serverA` },
+      ]);
+
+      const { loadedTools } = await loadTools({
+        user: fakeUser._id,
+        tools: [`${Constants.mcp_all}${Constants.mcp_delimiter}serverA`],
+        options: {
+          mcpPermissionContext: { canUseServers: jest.fn().mockResolvedValue(true) },
+        },
+      });
+
+      expect(loadedTools.map((tool) => tool.name)).toEqual([
+        `alpha${Constants.mcp_delimiter}serverA`,
+        `zebra${Constants.mcp_delimiter}serverA`,
+      ]);
     });
   });
 });
