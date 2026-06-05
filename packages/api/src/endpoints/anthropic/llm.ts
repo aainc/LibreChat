@@ -220,6 +220,16 @@ function getLLMConfig(
   /** Pass promptCache boolean for downstream cache_control application */
   if (supportsCacheControl) {
     (requestOptions as Record<string, unknown>).promptCache = true;
+    /**
+     * Extended prompt cache TTL ('1h' | '5m') passed through to the forked
+     * `@librechat/agents` SDK (vendored tarball), which stamps it on all
+     * `cache_control` markers. Configured via `ANTHROPIC_PROMPT_CACHE_TTL`;
+     * unset keeps the default 5m TTL (`{ type: 'ephemeral' }` without `ttl`).
+     */
+    const promptCacheTTL = process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+    if (promptCacheTTL === '1h' || promptCacheTTL === '5m') {
+      (requestOptions as Record<string, unknown>).promptCacheTTL = promptCacheTTL;
+    }
   }
 
   const headers = getClaudeHeaders(requestOptions.model ?? '', supportsCacheControl);

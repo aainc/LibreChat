@@ -1,0 +1,555 @@
+diff --git a/package.json b/package.json
+index 674434a..ac4ead6 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@librechat/agents",
+-  "version": "3.2.02",
++  "version": "3.2.2-aainc.1",
+   "main": "./dist/cjs/main.cjs",
+   "module": "./dist/esm/main.mjs",
+   "types": "./dist/types/index.d.ts",
+diff --git a/src/agents/AgentContext.ts b/src/agents/AgentContext.ts
+index 8535357..7f0ab94 100644
+--- a/src/agents/AgentContext.ts
++++ b/src/agents/AgentContext.ts
+@@ -20,6 +20,8 @@ import { createSchemaOnlyTools } from '@/tools/schema';
+ import {
+   addCacheControl,
+   addCacheControlToStablePrefixMessages,
++  makeEphemeralCacheControl,
++  type PromptCacheTTL,
+ } from '@/messages/cache';
+ import { DEFAULT_RESERVE_RATIO } from '@/messages';
+ import { toJsonSchema } from '@/utils/schema';
+@@ -27,7 +29,7 @@ import { toJsonSchema } from '@/utils/schema';
+ type AgentSystemTextBlock = {
+   type: 'text';
+   text: string;
+-  cache_control?: { type: 'ephemeral' };
++  cache_control?: { type: 'ephemeral'; ttl?: PromptCacheTTL };
+ };
+ 
+ type AgentSystemContentBlock =
+@@ -678,7 +680,7 @@ export class AgentContext {
+         dynamicTail.length === 0 &&
+         body.length >= 2
+       ) {
+-        body = addCacheControl(body);
++        body = addCacheControl(body, this.getAnthropicPromptCacheTTL());
+       }
+       return [...prefix, ...body];
+     }).withConfig({ runName: 'prompt' });
+@@ -702,7 +704,9 @@ export class AgentContext {
+         {
+           type: 'text',
+           text: wrappedSummary,
+-          cache_control: { type: 'ephemeral' },
++          cache_control: makeEphemeralCacheControl(
++            this.getAnthropicPromptCacheTTL()
++          ),
+         },
+       ],
+     });
+@@ -787,10 +791,31 @@ export class AgentContext {
+ 
+     return [
+       messages[0],
+-      ...addCacheControlToStablePrefixMessages(messages.slice(1), 2),
++      ...addCacheControlToStablePrefixMessages(
++        messages.slice(1),
++        2,
++        this.getAnthropicPromptCacheTTL()
++      ),
+     ];
+   }
+ 
++  /**
++   * Returns the configured prompt cache TTL when the provider is Anthropic
++   * with prompt caching enabled; undefined otherwise (default 5m TTL).
++   */
++  private getAnthropicPromptCacheTTL(): PromptCacheTTL | undefined {
++    if (this.provider !== Providers.ANTHROPIC) {
++      return undefined;
++    }
++    const anthropicOptions = this.clientOptions as
++      | t.AnthropicClientOptions
++      | undefined;
++    if (anthropicOptions?.promptCache !== true) {
++      return undefined;
++    }
++    return anthropicOptions.promptCacheTTL;
++  }
++
+   private getPromptCacheProvider(): PromptCacheProvider | undefined {
+     if (this.provider === Providers.ANTHROPIC) {
+       const anthropicOptions = this.clientOptions as
+@@ -844,7 +869,9 @@ export class AgentContext {
+         content.push({
+           type: 'text',
+           text: stableInstructions,
+-          cache_control: { type: 'ephemeral' },
++          cache_control: makeEphemeralCacheControl(
++            this.getAnthropicPromptCacheTTL()
++          ),
+         });
+       }
+       if (dynamicInstructions && !shouldMoveDynamicInstructions) {
+diff --git a/src/agents/__tests__/promptCacheTTL.poc.test.ts b/src/agents/__tests__/promptCacheTTL.poc.test.ts
+new file mode 100644
+index 0000000..a8d898d
+--- /dev/null
++++ b/src/agents/__tests__/promptCacheTTL.poc.test.ts
+@@ -0,0 +1,158 @@
++/**
++ * PoC verification: `promptCacheTTL: '1h'` configured on AnthropicClientOptions
++ * propagates into the actual Anthropic request payload's `cache_control`
++ * markers — without requiring a real API key.
++ *
++ * Request assembly is verified via `_convertMessagesToAnthropicPayload`,
++ * the same function `CustomAnthropic` uses to build the request body
++ * (see src/llm/anthropic/index.ts `_streamResponseChunks`).
++ */
++import { HumanMessage, AIMessage } from '@langchain/core/messages';
++import { AgentContext } from '../AgentContext';
++import { Providers } from '@/common';
++import { addCacheControl } from '@/messages/cache';
++import {
++  partitionAndMarkAnthropicToolCache,
++  makeIsDeferred,
++} from '@/messages/anthropicToolCache';
++import { _convertMessagesToAnthropicPayload } from '@/llm/anthropic/utils/message_inputs';
++import type * as t from '@/types';
++
++type CacheControl = { type: string; ttl?: string };
++type TextBlock = { type: 'text'; text: string; cache_control?: CacheControl };
++
++const createAnthropicContext = (
++  clientOptions: t.AnthropicClientOptions
++): AgentContext =>
++  AgentContext.fromConfig({
++    agentId: 'ttl-poc-agent',
++    provider: Providers.ANTHROPIC,
++    instructions: 'Stable instructions',
++    clientOptions,
++  });
++
++describe('PoC: promptCacheTTL propagation into Anthropic request payload', () => {
++  it('stamps ttl:1h on the system block cache_control in the request payload', async () => {
++    const ctx = createAnthropicContext({
++      model: 'claude-sonnet-4-6',
++      promptCache: true,
++      promptCacheTTL: '1h',
++    });
++
++    const finalMessages = await ctx.systemRunnable!.invoke([
++      new HumanMessage('Hello'),
++      new AIMessage('Hi!'),
++      new HumanMessage('Second turn'),
++    ]);
++
++    // Same conversion CustomAnthropic applies right before the HTTP request
++    const payload = _convertMessagesToAnthropicPayload(finalMessages);
++
++    const systemBlocks = payload.system as unknown as TextBlock[];
++    expect(Array.isArray(systemBlocks)).toBe(true);
++    expect(systemBlocks[0].cache_control).toEqual({
++      type: 'ephemeral',
++      ttl: '1h',
++    });
++
++    // Conversation cache markers (last 2 user messages) also carry the TTL
++    const markers: CacheControl[] = [];
++    for (const message of payload.messages) {
++      if (!Array.isArray(message.content)) continue;
++      for (const block of message.content) {
++        const cc = (block as TextBlock).cache_control;
++        if (cc != null) markers.push(cc);
++      }
++    }
++    expect(markers.length).toBeGreaterThan(0);
++    for (const marker of markers) {
++      expect(marker).toEqual({ type: 'ephemeral', ttl: '1h' });
++    }
++  });
++
++  it('keeps default ephemeral (no ttl) when promptCacheTTL is not set', async () => {
++    const ctx = createAnthropicContext({
++      model: 'claude-sonnet-4-6',
++      promptCache: true,
++    });
++
++    const finalMessages = await ctx.systemRunnable!.invoke([
++      new HumanMessage('Hello'),
++      new AIMessage('Hi!'),
++      new HumanMessage('Second turn'),
++    ]);
++    const payload = _convertMessagesToAnthropicPayload(finalMessages);
++
++    const systemBlocks = payload.system as unknown as TextBlock[];
++    expect(systemBlocks[0].cache_control).toEqual({ type: 'ephemeral' });
++    expect(
++      (systemBlocks[0].cache_control as CacheControl).ttl
++    ).toBeUndefined();
++  });
++
++  it('stamps ttl:1h via addCacheControl for raw message arrays', () => {
++    const messages = [
++      new HumanMessage('First'),
++      new AIMessage('Reply'),
++      new HumanMessage('Second'),
++    ];
++    const result = addCacheControl(messages, '1h');
++    const last = result[result.length - 1];
++    const blocks = last.content as TextBlock[];
++    expect(blocks[blocks.length - 1].cache_control).toEqual({
++      type: 'ephemeral',
++      ttl: '1h',
++    });
++  });
++
++  it('stamps ttl:1h on the last static tool definition', () => {
++    const tools = [
++      { name: 'tool_a', description: 'a' },
++      { name: 'tool_b', description: 'b' },
++      { name: 'deferred_c', description: 'c' },
++    ] as unknown as t.GraphTools;
++
++    const marked = partitionAndMarkAnthropicToolCache(
++      tools,
++      makeIsDeferred([{ name: 'deferred_c', defer_loading: true }]),
++      '1h'
++    );
++
++    const staticLast = (marked as Array<Record<string, unknown>>)[1] as {
++      extras?: { cache_control?: CacheControl };
++    };
++    expect(staticLast.extras?.cache_control).toEqual({
++      type: 'ephemeral',
++      ttl: '1h',
++    });
++  });
++
++  it('stamps ttl on summary human message when summary is present', async () => {
++    const ctx = createAnthropicContext({
++      model: 'claude-sonnet-4-6',
++      promptCache: true,
++      promptCacheTTL: '1h',
++    });
++    ctx.setSummary('A summary of prior conversation.', 3);
++
++    const finalMessages = await ctx.systemRunnable!.invoke([
++      new HumanMessage('Hello'),
++      new AIMessage('Hi!'),
++      new HumanMessage('Second turn'),
++    ]);
++    const payload = _convertMessagesToAnthropicPayload(finalMessages);
++
++    const ttlMarkers: CacheControl[] = [];
++    for (const message of payload.messages) {
++      if (!Array.isArray(message.content)) continue;
++      for (const block of message.content) {
++        const cc = (block as TextBlock).cache_control;
++        if (cc != null) ttlMarkers.push(cc);
++      }
++    }
++    expect(ttlMarkers.length).toBeGreaterThan(0);
++    for (const marker of ttlMarkers) {
++      expect(marker.ttl).toBe('1h');
++    }
++  });
++});
+diff --git a/src/graphs/Graph.ts b/src/graphs/Graph.ts
+index 36df4a4..498625d 100644
+--- a/src/graphs/Graph.ts
++++ b/src/graphs/Graph.ts
+@@ -1143,7 +1143,9 @@ export class StandardGraph extends Graph<t.BaseGraphState, t.GraphNode> {
+         toolsForBinding =
+           partitionAndMarkAnthropicToolCache(
+             rawToolsForBinding,
+-            makeIsDeferred(agentContext.toolDefinitions)
++            makeIsDeferred(agentContext.toolDefinitions),
++            (agentContext.clientOptions as t.AnthropicClientOptions | undefined)
++              ?.promptCacheTTL
+           ) ?? rawToolsForBinding;
+       } else if (
+         agentContext.provider === Providers.OPENROUTER &&
+@@ -1418,7 +1420,10 @@ export class StandardGraph extends Graph<t.BaseGraphState, t.GraphNode> {
+           anthropicOptions?.promptCache === true &&
+           !agentContext.systemRunnable
+         ) {
+-          finalMessages = addCacheControl<BaseMessage>(finalMessages);
++          finalMessages = addCacheControl<BaseMessage>(
++            finalMessages,
++            anthropicOptions.promptCacheTTL
++          );
+         }
+       } else if (agentContext.provider === Providers.BEDROCK) {
+         const bedrockOptions = agentContext.clientOptions as
+diff --git a/src/messages/anthropicToolCache.ts b/src/messages/anthropicToolCache.ts
+index cd79213..e7fb652 100644
+--- a/src/messages/anthropicToolCache.ts
++++ b/src/messages/anthropicToolCache.ts
+@@ -26,6 +26,7 @@
+  */
+ 
+ import type { GraphTools } from '@/types';
++import { makeEphemeralCacheControl, type PromptCacheTTL } from './cache';
+ 
+ const ANTHROPIC_BUILT_IN_TOOL_PREFIXES = [
+   'text_editor_',
+@@ -68,21 +69,24 @@ function hasCacheControl(tool: AnthropicToolCacheCandidate): boolean {
+ }
+ 
+ function markCacheControl(
+-  tool: AnthropicToolCacheCandidate
++  tool: AnthropicToolCacheCandidate,
++  ttl?: PromptCacheTTL
+ ): AnthropicToolCacheCandidate {
++  const cacheControl =
++    ttl != null ? makeEphemeralCacheControl(ttl) : CACHE_CONTROL;
+   const prototype = Object.getPrototypeOf(tool) ?? Object.prototype;
+   if (isAnthropicBuiltInTool(tool)) {
+     const wrapped = { ...tool };
+     delete wrapped.extras;
+     return Object.assign(Object.create(prototype), wrapped, {
+-      cache_control: CACHE_CONTROL,
++      cache_control: cacheControl,
+     });
+   }
+ 
+   return Object.assign(Object.create(prototype), tool, {
+     extras: {
+       ...(tool.extras ?? {}),
+-      cache_control: CACHE_CONTROL,
++      cache_control: cacheControl,
+     },
+   });
+ }
+@@ -124,7 +128,8 @@ export function makeIsDeferred(
+  */
+ export function partitionAndMarkAnthropicToolCache(
+   tools: GraphTools | undefined,
+-  isDeferred: (toolName: string) => boolean
++  isDeferred: (toolName: string) => boolean,
++  ttl?: PromptCacheTTL
+ ): GraphTools | undefined {
+   if (tools == null || tools.length === 0) return tools;
+ 
+@@ -156,6 +161,6 @@ export function partitionAndMarkAnthropicToolCache(
+     return [...staticTools, ...deferredTools] as GraphTools;
+   }
+ 
+-  staticTools[staticTools.length - 1] = markCacheControl(last);
++  staticTools[staticTools.length - 1] = markCacheControl(last, ttl);
+   return [...staticTools, ...deferredTools] as GraphTools;
+ }
+diff --git a/src/messages/cache.ts b/src/messages/cache.ts
+index 2a9523d..363d80b 100644
+--- a/src/messages/cache.ts
++++ b/src/messages/cache.ts
+@@ -19,6 +19,21 @@ type MessageContentWithCacheControl = MessageContentComplex & {
+   cache_control?: unknown;
+ };
+ 
++/** TTL for Anthropic ephemeral cache_control blocks ('5m' default, '1h' extended). */
++export type PromptCacheTTL = '5m' | '1h';
++
++export type EphemeralCacheControl = {
++  type: 'ephemeral';
++  ttl?: PromptCacheTTL;
++};
++
++/** Builds an Anthropic ephemeral cache_control marker, with optional TTL. */
++export function makeEphemeralCacheControl(
++  ttl?: PromptCacheTTL
++): EphemeralCacheControl {
++  return ttl != null ? { type: 'ephemeral', ttl } : { type: 'ephemeral' };
++}
++
+ /**
+  * Deep clones a message's content to prevent mutation of the original.
+  */
+@@ -150,7 +165,8 @@ function sanitizeBedrockSystemMessage<T extends MessageWithContent>(
+  * @returns - A new array of message objects with cache control added.
+  */
+ export function addCacheControl<T extends AnthropicMessage | BaseMessage>(
+-  messages: T[]
++  messages: T[],
++  ttl?: PromptCacheTTL
+ ): T[] {
+   if (!Array.isArray(messages) || messages.length < 2) {
+     return messages;
+@@ -210,14 +226,16 @@ export function addCacheControl<T extends AnthropicMessage | BaseMessage>(
+       if (needsCacheAdd && lastTextIndex >= 0) {
+         (
+           workingContent[lastTextIndex] as Anthropic.TextBlockParam
+-        ).cache_control = {
+-          type: 'ephemeral',
+-        };
++        ).cache_control = makeEphemeralCacheControl(ttl);
+         userMessagesModified++;
+       }
+     } else if (typeof content === 'string' && needsCacheAdd) {
+       workingContent = [
+-        { type: 'text', text: content, cache_control: { type: 'ephemeral' } },
++        {
++          type: 'text',
++          text: content,
++          cache_control: makeEphemeralCacheControl(ttl),
++        },
+       ] as unknown as MessageContentComplex[];
+       userMessagesModified++;
+     } else {
+@@ -274,7 +292,8 @@ function addCacheControlToRecentMessages<
+ >(
+   messages: T[],
+   maxCachePoints: number,
+-  canUseMessage: (message: MessageWithContent) => boolean
++  canUseMessage: (message: MessageWithContent) => boolean,
++  ttl?: PromptCacheTTL
+ ): T[] {
+   if (
+     !Array.isArray(messages) ||
+@@ -331,9 +350,7 @@ function addCacheControlToRecentMessages<
+       if (canAddCache && lastNonEmptyTextIndex >= 0) {
+         (
+           workingContent[lastNonEmptyTextIndex] as Anthropic.TextBlockParam
+-        ).cache_control = {
+-          type: 'ephemeral',
+-        };
++        ).cache_control = makeEphemeralCacheControl(ttl);
+         cachePointsAdded++;
+         modified = true;
+       }
+@@ -347,7 +364,11 @@ function addCacheControlToRecentMessages<
+       canAddCache
+     ) {
+       workingContent = [
+-        { type: 'text', text: content, cache_control: { type: 'ephemeral' } },
++        {
++          type: 'text',
++          text: content,
++          cache_control: makeEphemeralCacheControl(ttl),
++        },
+       ] as unknown as MessageContentComplex[];
+       cachePointsAdded++;
+     } else {
+@@ -365,11 +386,12 @@ function addCacheControlToRecentMessages<
+ 
+ export function addCacheControlToStablePrefixMessages<
+   T extends AnthropicMessage | BaseMessage,
+->(messages: T[], maxCachePoints: number): T[] {
++>(messages: T[], maxCachePoints: number, ttl?: PromptCacheTTL): T[] {
+   const assistantMarked = addCacheControlToRecentMessages(
+     messages,
+     maxCachePoints,
+-    isAssistantConversationMessage
++    isAssistantConversationMessage,
++    ttl
+   );
+ 
+   if (assistantMarked.some(hasCacheMarker)) {
+@@ -379,7 +401,8 @@ export function addCacheControlToStablePrefixMessages<
+   return addCacheControlToRecentMessages(
+     messages,
+     maxCachePoints,
+-    isCacheableConversationMessage
++    isCacheableConversationMessage,
++    ttl
+   );
+ }
+ 
+diff --git a/src/summarization/node.ts b/src/summarization/node.ts
+index e0cb3cf..1514931 100644
+--- a/src/summarization/node.ts
++++ b/src/summarization/node.ts
+@@ -16,7 +16,7 @@ import { attemptInvoke, tryFallbackProviders } from '@/llm/invoke';
+ import { createRemoveAllMessage } from '@/messages/reducer';
+ import { splitAtRecencyBoundary } from '@/messages/recency';
+ import { getMaxOutputTokensKey } from '@/llm/request';
+-import { addCacheControl } from '@/messages/cache';
++import { addCacheControl, type PromptCacheTTL } from '@/messages/cache';
+ import { initializeModel } from '@/llm/init';
+ import { getChunkContent } from '@/stream';
+ import { executeHooks } from '@/hooks';
+@@ -506,6 +506,7 @@ async function executeSummarizationWithFallback(params: {
+   summarizeConfig?: RunnableConfig;
+   stepId: string;
+   usePromptCache: boolean;
++  promptCacheTTL?: PromptCacheTTL;
+   log: LogFn;
+ }): Promise<{ text: string; usage?: Partial<UsageMetadata> }> {
+   const {
+@@ -515,6 +516,7 @@ async function executeSummarizationWithFallback(params: {
+     summarizeConfig,
+     stepId,
+     usePromptCache,
++    promptCacheTTL,
+     log,
+   } = params;
+ 
+@@ -546,6 +548,7 @@ async function executeSummarizationWithFallback(params: {
+       provider: clientConfig.provider as Providers,
+       reasoningKey: agentContext.reasoningKey,
+       usePromptCache,
++      promptCacheTTL,
+       log,
+     });
+     summaryText = result.text;
+@@ -950,6 +953,14 @@ export function createSummarizeNode({
+         summarizeConfig,
+         stepId,
+         usePromptCache: isSelfSummarizeModel && hasPromptCache,
++        promptCacheTTL:
++          agentContext.provider === Providers.ANTHROPIC
++            ? (
++              agentContext.clientOptions as
++                  | t.AnthropicClientOptions
++                  | undefined
++            )?.promptCacheTTL
++            : undefined,
+         log,
+       });
+ 
+@@ -1186,6 +1197,7 @@ async function summarizeWithCacheHit({
+   provider,
+   reasoningKey,
+   usePromptCache,
++  promptCacheTTL,
+   log,
+ }: {
+   model: t.ChatModel;
+@@ -1198,6 +1210,7 @@ async function summarizeWithCacheHit({
+   provider: Providers;
+   reasoningKey?: 'reasoning_content' | 'reasoning';
+   usePromptCache?: boolean;
++  promptCacheTTL?: PromptCacheTTL;
+   log?: LogFn;
+ }): Promise<{ text: string; usage?: Partial<UsageMetadata> }> {
+   const instruction = buildSummarizationInstruction(
+@@ -1208,7 +1221,9 @@ async function summarizeWithCacheHit({
+ 
+   const fullMessages = [...messages, new HumanMessage(instruction)];
+   const invokeMessages =
+-    usePromptCache === true ? addCacheControl(fullMessages) : fullMessages;
++    usePromptCache === true
++      ? addCacheControl(fullMessages, promptCacheTTL)
++      : fullMessages;
+ 
+   const result = await attemptInvoke(
+     {
+diff --git a/src/types/llm.ts b/src/types/llm.ts
+index eec4427..a47c594 100644
+--- a/src/types/llm.ts
++++ b/src/types/llm.ts
+@@ -76,6 +76,8 @@ export type OpenAIClientOptions = ChatOpenAIFields;
+ export type AnthropicClientOptions = Omit<AnthropicInput, 'thinking'> & {
+   thinking?: ThinkingConfig;
+   promptCache?: boolean;
++  /** TTL for prompt cache breakpoints ('5m' default, '1h' extended). Only used when `promptCache` is true. */
++  promptCacheTTL?: '5m' | '1h';
+ };
+ export type MistralAIClientOptions = ChatMistralAIInput;
+ export type VertexAIClientOptions = ChatVertexAIInput & {

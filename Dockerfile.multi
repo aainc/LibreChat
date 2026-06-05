@@ -30,6 +30,9 @@ COPY packages/data-schemas/package*.json ./packages/data-schemas/
 COPY packages/client/package*.json ./packages/client/
 COPY client/package*.json ./client/
 COPY api/package*.json ./api/
+# Vendored fork of @librechat/agents (prompt cache TTL support) must exist
+# before `npm ci` (api/ and packages/api reference it via file: spec)
+COPY vendor/librechat-agents-3.2.2-aainc.1.tgz ./vendor/
 
 # Install all dependencies for every build
 FROM base-min AS base
