@@ -105,8 +105,12 @@ junit.xml
 **/venv/
 
 # docker override file
+# aainc fork: docker-compose.override.yml is tracked — it pins the local build
+# (vendored @librechat/agents fork) + 1h prompt cache TTL. Put personal,
+# uncommitted overrides in a separate file (e.g. docker-compose.local.yml)
+# and pass it with -f instead.
 docker-compose.override.yaml
-docker-compose.override.yml
+!docker-compose.override.yml
 
 # meilisearch
 meilisearch

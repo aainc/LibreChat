@@ -1,0 +1,20 @@
+# aainc fork: committed override, auto-loaded by `docker compose up`.
+#
+# Builds the api image locally from this repository so the vendored
+# @librechat/agents fork (vendor/librechat-agents-*.tgz, 1h prompt cache
+# TTL support) is included — the official prebuilt image does NOT contain
+# it — and enables the 1h TTL (which also switches cache-write accounting
+# to the 1h rate). See vendor/README.md for details.
+#
+# Personal, uncommitted customizations should go in a separate file
+# (e.g. docker-compose.local.yml) passed explicitly:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml \
+#     -f docker-compose.local.yml up -d
+services:
+  api:
+    image: librechat
+    build:
+      context: .
+      target: node
+    environment:
+      - ANTHROPIC_PROMPT_CACHE_TTL=1h

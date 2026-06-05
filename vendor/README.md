@@ -43,27 +43,17 @@ The stock `docker-compose.yml` pulls the official prebuilt image
 (`registry.librechat.ai/danny-avila/librechat-dev:latest`), which is
 built from upstream and does **not** contain the forked
 `@librechat/agents` — with that image the TTL env var has no effect on
-requests. To run with the fork, build the image from this repository
-via an override file (see the "LOCAL BUILD" section in
-`docker-compose.override.yml.example`):
+requests.
 
-```yaml
-# docker-compose.override.yml
-services:
-  api:
-    image: librechat
-    build:
-      context: .
-      target: node
-```
+This fork therefore ships a **committed `docker-compose.override.yml`**
+(auto-loaded by Docker Compose, un-ignored in `.gitignore`) that:
 
-Then add the TTL setting to your `.env` (read by the api service):
+- builds the api image locally from this repository
+  (`build: { context: ., target: node }`), and
+- sets `ANTHROPIC_PROMPT_CACHE_TTL=1h` on the api service.
 
-```
-ANTHROPIC_PROMPT_CACHE_TTL=1h
-```
-
-And build + start:
+So the standard commands already build and run with the fork and the
+1h TTL enabled — no extra flags:
 
 ```bash
 docker compose build api
@@ -79,6 +69,24 @@ docker compose exec api node -e \
   "console.log(require('@librechat/agents/package.json').version)"
 # -> 3.2.2-aainc.1
 ```
+
+### If you already had a local docker-compose.override.yml
+
+Upstream gitignores this file; this fork tracks it. If you kept personal
+customizations in an untracked `docker-compose.override.yml`, `git pull`
+will refuse to overwrite it ("untracked working tree files would be
+overwritten") — move your file aside, pull, then re-apply your changes
+in a separate file (e.g. `docker-compose.local.yml`) passed explicitly:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml \
+  -f docker-compose.local.yml up -d
+```
+
+To opt out of the 1h TTL while keeping the local build, set
+`ANTHROPIC_PROMPT_CACHE_TTL=` (empty) in a later override layer (e.g.
+the `docker-compose.local.yml` above) — an empty value disables the
+feature and requests fall back to the default 5m TTL.
 
 ## How to rebuild the tarball
 
