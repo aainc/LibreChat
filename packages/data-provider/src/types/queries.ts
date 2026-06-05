@@ -19,11 +19,12 @@ export type ConversationListParams = {
   sortDirection?: 'asc' | 'desc';
   tags?: string[];
   search?: string;
+  projectId?: string;
 };
 
 export type MinimalConversation = Pick<
   s.TConversation,
-  'conversationId' | 'endpoint' | 'title' | 'createdAt' | 'updatedAt' | 'user'
+  'conversationId' | 'endpoint' | 'title' | 'createdAt' | 'updatedAt' | 'user' | 'chatProjectId'
 >;
 
 export type ConversationListResponse = {
@@ -36,6 +37,21 @@ export type ConversationUpdater = (
   data: ConversationData,
   conversation: s.TConversation,
 ) => ConversationData;
+
+export type ProjectListParams = {
+  cursor?: string;
+  limit?: number;
+  sortBy?: 'name' | 'createdAt' | 'lastConversationAt';
+  sortDirection?: 'asc' | 'desc';
+  search?: string;
+};
+
+export type ProjectListResponse = {
+  projects: t.TChatProject[];
+  nextCursor: string | null;
+};
+
+export type ProjectData = InfiniteData<ProjectListResponse>;
 
 /* Messages */
 export type MessagesListParams = {
@@ -60,7 +76,6 @@ export type SharedMessagesResponse = Omit<s.TSharedLink, 'messages'> & {
 
 export interface SharedLinksListParams {
   pageSize: number;
-  isPublic: boolean;
   sortBy: 'title' | 'createdAt';
   sortDirection: 'asc' | 'desc';
   search?: string;
@@ -70,7 +85,6 @@ export interface SharedLinksListParams {
 export type SharedLinkItem = {
   shareId: string;
   title: string;
-  isPublic: boolean;
   createdAt: Date;
   conversationId: string;
 };
@@ -172,6 +186,13 @@ export type AccessRole = {
 
 export type AccessRolesResponse = AccessRole[];
 
+export type ListRolesResponse = {
+  roles: Array<{ _id?: string; name: string; description?: string }>;
+  total: number;
+  limit: number;
+  offset?: number;
+};
+
 export interface MCPServerStatus {
   requiresOAuth: boolean;
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -185,8 +206,8 @@ export interface MCPConnectionStatusResponse {
 export interface MCPServerConnectionStatusResponse {
   success: boolean;
   serverName: string;
-  connectionStatus: string;
   requiresOAuth: boolean;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
 }
 
 export interface MCPAuthValuesResponse {
@@ -194,6 +215,20 @@ export interface MCPAuthValuesResponse {
   serverName: string;
   authValueFlags: Record<string, boolean>;
 }
+
+/**
+ * User Favorites — pinned agents, models, and model specs.
+ * Exactly one variant should be set per entry; exclusivity is enforced
+ * server-side in FavoritesController. Shape is loose for state-update ergonomics.
+ */
+export type TUserFavorite = {
+  agentId?: string;
+  model?: string;
+  endpoint?: string;
+  spec?: string;
+  /** Phase 2 — skill favoriting isn't persisted yet, but the shape is reserved. */
+  skillId?: string;
+};
 
 /* SharePoint Graph API Token */
 export type GraphTokenParams = {
