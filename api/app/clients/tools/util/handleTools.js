@@ -452,7 +452,9 @@ const loadTools = async ({
   const failedMCPServers = new Set();
   const safeUser = createSafeUser(options.req?.user);
 
-  for (const [serverName, toolConfigs] of Object.entries(requestedMCPTools)) {
+  /** Sorted by server name for deterministic ordering, which keeps prompt cache keys stable across requests */
+  const sortedMCPEntries = Object.entries(requestedMCPTools).sort(([a], [b]) => a.localeCompare(b));
+  for (const [serverName, toolConfigs] of sortedMCPEntries) {
     index++;
     /** @type {LCAvailableTools} */
     let availableTools;

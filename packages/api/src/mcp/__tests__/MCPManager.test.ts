@@ -298,6 +298,73 @@ describe('MCPManager', () => {
       expect(result).not.toContain('database');
     });
 
+    it('should sort server instructions by server name for deterministic ordering', async () => {
+      (mockRegistryInstance.getAllServerConfigs as jest.Mock).mockResolvedValue({
+        zebra: {
+          type: 'stdio',
+          command: 'node',
+          args: ['zebra.js'],
+          serverInstructions: 'Zebra instructions',
+        },
+        alpha: {
+          type: 'stdio',
+          command: 'node',
+          args: ['alpha.js'],
+          serverInstructions: 'Alpha instructions',
+        },
+        mango: {
+          type: 'stdio',
+          command: 'node',
+          args: ['mango.js'],
+          serverInstructions: 'Mango instructions',
+        },
+      });
+
+      const manager = await MCPManager.createInstance(newMCPServersConfig());
+      const result = await manager.formatInstructionsForContext();
+
+      const alphaIndex = result.indexOf('## alpha MCP Server Instructions');
+      const mangoIndex = result.indexOf('## mango MCP Server Instructions');
+      const zebraIndex = result.indexOf('## zebra MCP Server Instructions');
+
+      expect(alphaIndex).toBeGreaterThan(-1);
+      expect(mangoIndex).toBeGreaterThan(alphaIndex);
+      expect(zebraIndex).toBeGreaterThan(mangoIndex);
+    });
+
+    it('should sort filtered server instructions regardless of requested order', async () => {
+      (mockRegistryInstance.getAllServerConfigs as jest.Mock).mockResolvedValue({
+        zebra: {
+          type: 'stdio',
+          command: 'node',
+          args: ['zebra.js'],
+          serverInstructions: 'Zebra instructions',
+        },
+        alpha: {
+          type: 'stdio',
+          command: 'node',
+          args: ['alpha.js'],
+          serverInstructions: 'Alpha instructions',
+        },
+        mango: {
+          type: 'stdio',
+          command: 'node',
+          args: ['mango.js'],
+          serverInstructions: 'Mango instructions',
+        },
+      });
+
+      const manager = await MCPManager.createInstance(newMCPServersConfig());
+      const result = await manager.formatInstructionsForContext(['zebra', 'alpha']);
+
+      const alphaIndex = result.indexOf('## alpha MCP Server Instructions');
+      const zebraIndex = result.indexOf('## zebra MCP Server Instructions');
+
+      expect(alphaIndex).toBeGreaterThan(-1);
+      expect(zebraIndex).toBeGreaterThan(alphaIndex);
+      expect(result).not.toContain('mango');
+    });
+
     it('should return empty string when filtered servers have no instructions', async () => {
       (mockRegistryInstance.getAllServerConfigs as jest.Mock).mockResolvedValue({
         github: {
