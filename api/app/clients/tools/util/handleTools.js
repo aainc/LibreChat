@@ -172,6 +172,15 @@ const getAuthFields = (toolKey) => {
 };
 
 /**
+ * Sorts MCP tool instances by tool name for deterministic ordering,
+ * which keeps prompt cache keys stable across requests
+ * @param {Tool[]} mcpTools
+ * @returns {Tool[]}
+ */
+const sortMCPToolsByName = (mcpTools) =>
+  mcpTools.sort((a, b) => (a?.name ?? '').localeCompare(b?.name ?? ''));
+
+/**
  *
  * @param {object} params
  * @param {string} params.user
@@ -622,7 +631,17 @@ const loadTools = async ({
     tokenPreference: 'access_token',
   });
 
-  for (const [serverName, toolConfigs] of Object.entries(requestedMCPTools)) {
+  /**
+   * Sorted by server name, with each server's tool configs sorted by tool key, for
+   * deterministic ordering, which keeps prompt cache keys stable across requests
+   */
+  const sortedMCPEntries = Object.entries(requestedMCPTools)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([serverName, toolConfigs]) => [
+      serverName,
+      [...toolConfigs].sort((a, b) => (a.toolKey ?? '').localeCompare(b.toolKey ?? '')),
+    ]);
+  for (const [serverName, toolConfigs] of sortedMCPEntries) {
     index++;
     /** @type {LCAvailableTools} */
     let availableTools = options.mcpAvailableTools?.[serverName];
@@ -683,7 +702,7 @@ const loadTools = async ({
               });
 
         if (Array.isArray(mcpTool)) {
-          loadedTools.push(...mcpTool);
+          loadedTools.push(...sortMCPToolsByName(mcpTool));
         } else if (mcpTool) {
           loadedTools.push(mcpTool);
         } else {
@@ -697,7 +716,11 @@ const loadTools = async ({
       }
     }
   }
-  loadedTools.push(...(await Promise.all(mcpToolPromises)).flatMap((plugin) => plugin || []));
+  loadedTools.push(
+    ...(await Promise.all(mcpToolPromises)).flatMap((plugin) =>
+      Array.isArray(plugin) ? sortMCPToolsByName(plugin) : plugin || [],
+    ),
+  );
   return { loadedTools, toolContextMap, dynamicToolContextMap, primedCodeFiles };
 };
 

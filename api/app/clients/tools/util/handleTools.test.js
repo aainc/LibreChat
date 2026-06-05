@@ -440,6 +440,70 @@ describe('Tool Handlers', () => {
       );
     });
 
+    it('initializes MCP servers in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTools.mockResolvedValue([]);
+
+      const tools = ['zebra', 'alpha', 'mango'].map(
+        (serverName) => `${Constants.mcp_all}${Constants.mcp_delimiter}${serverName}`,
+      );
+
+      await loadTools({
+        user: fakeUser._id.toString(),
+        tools,
+        options: { req: { user: { id: fakeUser._id.toString(), role: 'USER' } } },
+      });
+
+      const initializedOrder = mockCreateMCPTools.mock.calls.map(([params]) => params.serverName);
+      expect(initializedOrder).toEqual(['alpha', 'mango', 'zebra']);
+    });
+
+    it('initializes tools within an MCP server in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTool.mockImplementation(({ toolKey }) => Promise.resolve({ name: toolKey }));
+
+      const tools = ['zebra', 'alpha', 'mango'].map(
+        (toolName) => `${toolName}${Constants.mcp_delimiter}serverA`,
+      );
+
+      const { loadedTools } = await loadTools({
+        user: fakeUser._id.toString(),
+        tools,
+        options: { req: { user: { id: fakeUser._id.toString(), role: 'USER' } } },
+      });
+
+      const expectedOrder = ['alpha', 'mango', 'zebra'].map(
+        (toolName) => `${toolName}${Constants.mcp_delimiter}serverA`,
+      );
+      expect(mockCreateMCPTool.mock.calls.map(([params]) => params.toolKey)).toEqual(expectedOrder);
+      expect(loadedTools.map((tool) => tool.name)).toEqual(expectedOrder);
+    });
+
+    it('sorts tools returned by an MCP server in deterministic name order', async () => {
+      mockGetServerConfig.mockImplementation((serverName) =>
+        Promise.resolve({ type: 'stdio', command: 'node', args: [serverName] }),
+      );
+      mockCreateMCPTools.mockResolvedValue([
+        { name: `zebra${Constants.mcp_delimiter}serverA` },
+        { name: `alpha${Constants.mcp_delimiter}serverA` },
+      ]);
+
+      const { loadedTools } = await loadTools({
+        user: fakeUser._id.toString(),
+        tools: [`${Constants.mcp_all}${Constants.mcp_delimiter}serverA`],
+        options: { req: { user: { id: fakeUser._id.toString(), role: 'USER' } } },
+      });
+
+      expect(loadedTools.map((tool) => tool.name)).toEqual([
+        `alpha${Constants.mcp_delimiter}serverA`,
+        `zebra${Constants.mcp_delimiter}serverA`,
+      ]);
+    });
+
     it('resolves normalized tool keys back to the raw server for config lookups', async () => {
       /** Model-facing keys embed `normalizeServerName(server)`, while the
        *  registry/config/cache are keyed by the raw config name — a
