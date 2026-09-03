@@ -103,11 +103,10 @@ services:
     container_name: code-interpreter
     restart: unless-stopped
     user: "${APP_UID:-1000}:${APP_GID:-1000}"
-    ports:
-      - "7000:8000"  # ← LibreChat推奨ポート
+    # Reachable only on the compose network: LibreChat >= v0.8.8 authenticates to the
+    # code API with a minted JWT (or no auth) and no longer sends x-api-key, which is
+    # the only scheme this image understands. So no API key and no host port.
     environment:
-      # 認証設定
-      - CODE_INTERPRETER_API_KEY=${LIBRECHAT_CODE_API_KEY:-librechat}
       # 実行設定
       - MAX_SESSIONS=${MAX_SESSIONS:-50}
       - EXECUTION_TIMEOUT=${EXECUTION_TIMEOUT:-300}
