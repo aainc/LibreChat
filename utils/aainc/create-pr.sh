@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # aainc/LibreChat 向け PR 作成 wrapper
 #
-# PR 先を常に aainc/LibreChat (base: main) に明示して gh pr create を実行する。
+# PR 先を常に aainc/LibreChat (base: aa-base) に明示して gh pr create を実行する。
 # フォーク元 (danny-avila/LibreChat) へ誤って PR を出す事故を構造的に防ぐ。
 #
 # 使い方:
@@ -31,4 +31,4 @@ for arg in "$@"; do
 done
 
 # --base は後勝ちのため、追加引数での上書き（aainc 内の別ブランチ向け）は許容される
-exec gh pr create --repo "$AAINC_REPO" --base main "$@"
+exec gh pr create --repo "$AAINC_REPO" --base aa-base "$@"

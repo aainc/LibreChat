@@ -127,6 +127,14 @@ function applyDefaultParams(target: Record<string, unknown>, defaults: Record<st
  * @param options={} - Additional options for configuring the LLM.
  * @returns Configuration options for creating an Anthropic LLM instance, with null and undefined values removed.
  */
+const DEPLOYMENT_PROMPT_CACHE_TTLS = new Set<string>(['5m', '1h']);
+
+/** Deployment-wide prompt cache TTL from `ANTHROPIC_PROMPT_CACHE_TTL` ('5m' | '1h'), if valid */
+export function resolveDeploymentPromptCacheTtl(): '5m' | '1h' | undefined {
+  const ttl = process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+  return ttl != null && DEPLOYMENT_PROMPT_CACHE_TTLS.has(ttl) ? (ttl as '5m' | '1h') : undefined;
+}
+
 function getLLMConfig(
   credentials: string | AnthropicCredentials | undefined,
   options: AnthropicConfigOptions = {},
@@ -282,9 +290,15 @@ function getLLMConfig(
   /** Pass promptCache boolean for downstream cache_control application */
   if (supportsCacheControl) {
     (requestOptions as Record<string, unknown>).promptCache = true;
-    /** Pass an explicit TTL when configured; otherwise the agents SDK defaults to 1h */
-    if (systemOptions.promptCacheTtl != null) {
-      (requestOptions as Record<string, unknown>).promptCacheTtl = systemOptions.promptCacheTtl;
+    /**
+     * `ANTHROPIC_PROMPT_CACHE_TTL` pins the TTL deployment-wide so every user shares
+     * one cache prefix and cache-write billing (see data-schemas tx.ts) stays in
+     * sync; otherwise pass an explicit per-request TTL when configured, and the
+     * agents SDK defaults to 1h.
+     */
+    const promptCacheTtl = resolveDeploymentPromptCacheTtl() ?? systemOptions.promptCacheTtl;
+    if (promptCacheTtl != null) {
+      (requestOptions as Record<string, unknown>).promptCacheTtl = promptCacheTtl;
     }
   }
 

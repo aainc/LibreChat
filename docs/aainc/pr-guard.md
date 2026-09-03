@@ -56,7 +56,7 @@ push を無効化しておく。
 bash utils/aainc/create-pr.sh --title "..." --body "..."
 ```
 
-wrapper は `gh pr create --repo aainc/LibreChat --base main` を強制する。
+wrapper は `gh pr create --repo aainc/LibreChat --base aa-base` を強制する。
 aainc 内の別ブランチに向けたい場合のみ `--base <branch>` を追加で渡す（後勝ちで上書きされる）。
 
 ### 3. 素の gh pr create を使う場合は --repo を必ず明示
@@ -64,7 +64,7 @@ aainc 内の別ブランチに向けたい場合のみ `--base <branch>` を追�
 wrapper を使えない事情がある場合でも、必ず以下の形で実行する:
 
 ```bash
-gh pr create --repo aainc/LibreChat --base main ...
+gh pr create --repo aainc/LibreChat --base aa-base ...
 ```
 
 `--repo` を省略した `gh pr create` は禁止。CI / 自動化スクリプトから PR を作成する場合も同様に
@@ -77,7 +77,7 @@ GitHub の compare 画面では base リポジトリのドロップダウンが
 URL で直接指定するのが安全:
 
 ```
-https://github.com/aainc/LibreChat/compare/main...<branch>
+https://github.com/aainc/LibreChat/compare/aa-base...<branch>
 ```
 
 ## PR 作成前チェックリスト

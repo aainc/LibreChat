@@ -1,0 +1,21 @@
+# aainc fork: committed override, auto-loaded by `docker compose up`.
+#
+# Builds the api image locally from this repository so fork-specific changes
+# (deterministic MCP ordering, 1h cache-write billing, code-interpreter wiring)
+# are included — the official prebuilt image does NOT contain them — and pins
+# the Anthropic prompt cache TTL to 1h deployment-wide, so every user shares
+# one cache prefix and cache-write accounting uses the 1h rate.
+# See docs/aainc/prompt-cache.md for details.
+#
+# Personal, uncommitted customizations should go in a separate file
+# (e.g. docker-compose.local.yml) passed explicitly:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml \
+#     -f docker-compose.local.yml up -d
+services:
+  api:
+    image: librechat
+    build:
+      context: .
+      target: node
+    environment:
+      - ANTHROPIC_PROMPT_CACHE_TTL=1h

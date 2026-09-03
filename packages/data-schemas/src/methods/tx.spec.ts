@@ -2685,8 +2685,8 @@ describe('Claude Model Tests', () => {
   });
 
   it('should charge Claude Fable 5.1 cache reads at a quarter of the Fable 5 rate', () => {
-    expect(cacheTokenValues['claude-fable-5-1']).toEqual({ write: 12.5, read: 0.25 });
-    expect(cacheTokenValues['claude-mythos-5-1']).toEqual({ write: 12.5, read: 0.25 });
+    expect(cacheTokenValues['claude-fable-5-1']).toMatchObject({ write: 12.5, read: 0.25 });
+    expect(cacheTokenValues['claude-mythos-5-1']).toMatchObject({ write: 12.5, read: 0.25 });
     expect(getCacheMultiplier({ model: 'claude-fable-5-1', cacheType: 'read' })).toBe(0.25);
     expect(getCacheMultiplier({ model: 'claude-fable-5-1', cacheType: 'write' })).toBe(12.5);
     expect(getCacheMultiplier({ model: 'claude-fable-5', cacheType: 'read' })).toBe(1);
@@ -2725,7 +2725,7 @@ describe('Claude Model Tests', () => {
   });
 
   it('should apply introductory cache rates ($2.50 / $0.20) for Claude Sonnet 5', () => {
-    expect(cacheTokenValues['claude-sonnet-5']).toEqual({ write: 2.5, read: 0.2 });
+    expect(cacheTokenValues['claude-sonnet-5']).toMatchObject({ write: 2.5, read: 0.2 });
   });
 
   it('should handle Claude Sonnet 5 model name variations without matching Sonnet 4', () => {
@@ -3101,3 +3101,110 @@ describe('vendor-prefixed pricing keys', () => {
 
 // Cross-package sync validation tests (tokens.ts ↔ tx.ts) moved to
 // packages/api tests since they require maxTokensMap from @librechat/api.
+
+describe('extended 1h prompt cache TTL (ANTHROPIC_PROMPT_CACHE_TTL)', () => {
+  const originalEnv = process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+    } else {
+      process.env.ANTHROPIC_PROMPT_CACHE_TTL = originalEnv;
+    }
+  });
+
+  const anthropicKeys = () =>
+    Object.keys(cacheTokenValues).filter((key) => cacheTokenValues[key].write1h != null);
+
+  it('uses the 1h write rate for Anthropic-endpoint usage when env is set to 1h', () => {
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+    expect(anthropicKeys().length).toBeGreaterThan(0);
+    for (const valueKey of anthropicKeys()) {
+      expect(getCacheMultiplier({ valueKey, cacheType: 'write', endpoint: 'anthropic' })).toBe(
+        cacheTokenValues[valueKey].write1h,
+      );
+    }
+  });
+
+  it('keeps read rates unchanged when env is set to 1h', () => {
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+    for (const valueKey of ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-fable-5-1']) {
+      expect(getCacheMultiplier({ valueKey, cacheType: 'read', endpoint: 'anthropic' })).toBe(
+        cacheTokenValues[valueKey].read,
+      );
+    }
+  });
+
+  it('keeps the default 5m write rate when env is unset or 5m', () => {
+    delete process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+    expect(
+      getCacheMultiplier({
+        valueKey: 'claude-sonnet-4-6',
+        cacheType: 'write',
+        endpoint: 'anthropic',
+      }),
+    ).toBe(cacheTokenValues['claude-sonnet-4-6'].write);
+
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '5m';
+    expect(
+      getCacheMultiplier({
+        valueKey: 'claude-sonnet-4-6',
+        cacheType: 'write',
+        endpoint: 'anthropic',
+      }),
+    ).toBe(cacheTokenValues['claude-sonnet-4-6'].write);
+  });
+
+  it('keeps the 5m write rate for non-Anthropic endpoints (e.g. Bedrock) even when env is 1h', () => {
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+    expect(
+      getCacheMultiplier({
+        valueKey: 'claude-sonnet-4-6',
+        cacheType: 'write',
+        endpoint: 'bedrock',
+      }),
+    ).toBe(cacheTokenValues['claude-sonnet-4-6'].write);
+    expect(getCacheMultiplier({ valueKey: 'claude-sonnet-4-6', cacheType: 'write' })).toBe(
+      cacheTokenValues['claude-sonnet-4-6'].write,
+    );
+  });
+
+  it('does not affect models without a write1h rate', () => {
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+    expect(getCacheMultiplier({ valueKey: 'gpt-4o', cacheType: 'write', endpoint: 'openAI' })).toBe(
+      cacheTokenValues['gpt-4o'].write,
+    );
+  });
+
+  it('applies the 1h write rate when valueKey is derived from the model', () => {
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+    expect(
+      getCacheMultiplier({
+        cacheType: 'write',
+        model: 'claude-sonnet-4-6-20251101',
+        endpoint: 'anthropic',
+      }),
+    ).toBe(cacheTokenValues['claude-sonnet-4-6'].write1h);
+  });
+
+  it('keeps endpointTokenConfig overrides authoritative over the 1h rate', () => {
+    process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+    const endpointTokenConfig = { 'claude-sonnet-4-6': { write: 7, read: 1 } };
+    expect(
+      getCacheMultiplier({
+        model: 'claude-sonnet-4-6',
+        cacheType: 'write',
+        endpoint: 'anthropic',
+        endpointTokenConfig,
+      }),
+    ).toBe(endpointTokenConfig['claude-sonnet-4-6'].write);
+  });
+
+  it('defines write1h as exactly 2x base input (vs 1.25x for 5m writes)', () => {
+    for (const valueKey of anthropicKeys()) {
+      const basePrompt = tokenValues[valueKey]?.prompt;
+      expect(basePrompt).toBeDefined();
+      expect(cacheTokenValues[valueKey].write1h).toBeCloseTo((basePrompt as number) * 2, 10);
+    }
+  });
+});

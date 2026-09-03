@@ -439,6 +439,50 @@ describe('getLLMConfig', () => {
       expect((result.llmConfig as Record<string, unknown>).promptCacheTtl).toBeUndefined();
     });
 
+    describe('ANTHROPIC_PROMPT_CACHE_TTL (deployment-wide TTL)', () => {
+      const originalEnv = process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+
+      afterEach(() => {
+        if (originalEnv === undefined) {
+          delete process.env.ANTHROPIC_PROMPT_CACHE_TTL;
+        } else {
+          process.env.ANTHROPIC_PROMPT_CACHE_TTL = originalEnv;
+        }
+      });
+
+      it('pins promptCacheTtl to the env value when no per-request TTL is set', () => {
+        process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+        const result = getLLMConfig('test-api-key', {
+          modelOptions: { model: 'claude-3-5-sonnet', promptCache: true },
+        });
+        expect((result.llmConfig as Record<string, unknown>).promptCacheTtl).toBe('1h');
+      });
+
+      it('overrides a per-request TTL so every user shares one cache prefix', () => {
+        process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+        const result = getLLMConfig('test-api-key', {
+          modelOptions: { model: 'claude-3-5-sonnet', promptCache: true, promptCacheTtl: '5m' },
+        });
+        expect((result.llmConfig as Record<string, unknown>).promptCacheTtl).toBe('1h');
+      });
+
+      it('ignores an invalid env value and falls back to the per-request TTL', () => {
+        process.env.ANTHROPIC_PROMPT_CACHE_TTL = '2h';
+        const result = getLLMConfig('test-api-key', {
+          modelOptions: { model: 'claude-3-5-sonnet', promptCache: true, promptCacheTtl: '5m' },
+        });
+        expect((result.llmConfig as Record<string, unknown>).promptCacheTtl).toBe('5m');
+      });
+
+      it('does not set promptCacheTtl when promptCache is disabled', () => {
+        process.env.ANTHROPIC_PROMPT_CACHE_TTL = '1h';
+        const result = getLLMConfig('test-api-key', {
+          modelOptions: { model: 'claude-3-5-sonnet', promptCache: false },
+        });
+        expect((result.llmConfig as Record<string, unknown>).promptCacheTtl).toBeUndefined();
+      });
+    });
+
     it('should drop promptCacheTtl when promptCache is dropped via dropParams', () => {
       const result = getLLMConfig('test-api-key', {
         modelOptions: {

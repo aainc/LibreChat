@@ -884,8 +884,9 @@ describe('Tool Handlers', () => {
 
     it('reuses discovered request-scoped MCP tool definitions within a server loop', async () => {
       const serverName = 'body-scoped';
-      const firstToolKey = `search${Constants.mcp_delimiter}${serverName}`;
-      const secondToolKey = `lookup${Constants.mcp_delimiter}${serverName}`;
+      /** Tool configs are sorted by key within a server, so `lookup` runs before `search` */
+      const firstToolKey = `lookup${Constants.mcp_delimiter}${serverName}`;
+      const secondToolKey = `search${Constants.mcp_delimiter}${serverName}`;
       const requestBody = { conversationId: 'conv-123', messageId: 'msg-123' };
       const serverConfig = {
         type: 'streamable-http',
@@ -895,13 +896,13 @@ describe('Tool Handlers', () => {
       const discoveredTools = {
         [firstToolKey]: {
           function: {
-            description: 'Search',
+            description: 'Lookup',
             parameters: { type: 'object', properties: {} },
           },
         },
         [secondToolKey]: {
           function: {
-            description: 'Lookup',
+            description: 'Search',
             parameters: { type: 'object', properties: {} },
           },
         },
@@ -911,11 +912,11 @@ describe('Tool Handlers', () => {
       mockCreateMCPTool
         .mockImplementationOnce(async ({ onAvailableTools }) => {
           onAvailableTools(discoveredTools);
-          return { name: 'search-tool' };
+          return { name: 'lookup-tool' };
         })
         .mockImplementationOnce(async ({ availableTools }) => {
           expect(availableTools).toBe(discoveredTools);
-          return { name: 'lookup-tool' };
+          return { name: 'search-tool' };
         });
 
       const result = await loadTools({
@@ -929,7 +930,7 @@ describe('Tool Handlers', () => {
         },
       });
 
-      expect(result.loadedTools).toEqual([{ name: 'search-tool' }, { name: 'lookup-tool' }]);
+      expect(result.loadedTools).toEqual([{ name: 'lookup-tool' }, { name: 'search-tool' }]);
       expect(mockGetMCPServerTools).toHaveBeenCalledTimes(1);
       expect(mockCreateMCPTool).toHaveBeenCalledTimes(2);
       expect(mockCreateMCPTool).toHaveBeenNthCalledWith(

@@ -16,6 +16,7 @@ type MultiplierParams = {
 type CacheMultiplierParams = {
   cacheType?: 'write' | 'read';
   model?: string;
+  endpoint?: string;
   endpointTokenConfig?: Record<string, Record<string, number>>;
   inputTokenCount?: number;
 };
@@ -46,6 +47,8 @@ export interface TxData {
   tokenType?: 'prompt' | 'completion' | 'credits';
   rawAmount?: number;
   valueKey?: string;
+  /** Provider that produced the usage (e.g. 'anthropic'); billing-only, not persisted */
+  endpoint?: string;
   endpointTokenConfig?: Record<string, Record<string, number>> | null;
   inputTokenCount?: number;
   inputTokens?: number;
@@ -122,7 +125,7 @@ export function createTransactionMethods(
   }
 
   /** Calculate token value for structured tokens */
-  function calculateStructuredTokenValue(txn: InternalTxDoc) {
+  function calculateStructuredTokenValue(txn: InternalTxDoc, endpoint?: string) {
     if (!txn.tokenType) {
       txn.tokenValue = txn.rawAmount;
       return;
@@ -142,6 +145,7 @@ export function createTransactionMethods(
         txMethods.getCacheMultiplier({
           cacheType: 'write',
           model,
+          endpoint,
           endpointTokenConfig: etConfig,
           inputTokenCount,
         }) ?? inputMultiplier;
@@ -149,6 +153,7 @@ export function createTransactionMethods(
         txMethods.getCacheMultiplier({
           cacheType: 'read',
           model,
+          endpoint,
           endpointTokenConfig: etConfig,
           inputTokenCount,
         }) ?? inputMultiplier;
@@ -338,7 +343,7 @@ export function createTransactionMethods(
    * Creates a transaction and updates the balance.
    */
   async function createTransaction(_txData: TxData): Promise<TransactionResult | undefined> {
-    const { balance, transactions, ...txData } = _txData;
+    const { balance, transactions, endpoint: _endpoint, ...txData } = _txData;
     if (txData.rawAmount != null && isNaN(txData.rawAmount)) {
       return;
     }
@@ -378,7 +383,7 @@ export function createTransactionMethods(
   async function createStructuredTransaction(
     _txData: TxData,
   ): Promise<TransactionResult | undefined> {
-    const { balance, transactions, ...txData } = _txData;
+    const { balance, transactions, endpoint, ...txData } = _txData;
     if (transactions?.enabled === false) {
       return;
     }
@@ -388,7 +393,7 @@ export function createTransactionMethods(
     transaction.endpointTokenConfig = txData.endpointTokenConfig;
     transaction.inputTokenCount = txData.inputTokenCount;
 
-    calculateStructuredTokenValue(transaction);
+    calculateStructuredTokenValue(transaction, endpoint);
 
     await transaction.save();
 

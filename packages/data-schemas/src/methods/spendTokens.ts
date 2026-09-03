@@ -7,6 +7,8 @@ export interface SpendTxData {
   conversationId?: string;
   model?: string;
   context?: string;
+  /** Provider that produced the usage (e.g. 'anthropic'); billing-only, not persisted */
+  endpoint?: string;
   endpointTokenConfig?: Record<string, Record<string, number>> | null;
   balance?: { enabled?: boolean };
   transactions?: { enabled?: boolean };

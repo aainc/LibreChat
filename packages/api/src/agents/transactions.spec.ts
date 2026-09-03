@@ -214,6 +214,23 @@ describe('prepareStructuredTokenSpend', () => {
     expect(entries[1].doc.tokenType).toBe('completion');
   });
 
+  it('forwards the usage endpoint to cache pricing without persisting it', () => {
+    const entries = prepareStructuredTokenSpend(
+      { ...baseTxData, endpoint: 'anthropic' },
+      { promptTokens: { input: 100, write: 50, read: 30 }, completionTokens: 80 },
+      mockPricing,
+    );
+    expect(mockPricing.getCacheMultiplier).toHaveBeenCalledWith(
+      expect.objectContaining({ cacheType: 'write', endpoint: 'anthropic' }),
+    );
+    expect(mockPricing.getCacheMultiplier).toHaveBeenCalledWith(
+      expect.objectContaining({ cacheType: 'read', endpoint: 'anthropic' }),
+    );
+    for (const entry of entries) {
+      expect(entry.doc).not.toHaveProperty('endpoint');
+    }
+  });
+
   it('should use cache multipliers when available', () => {
     (mockPricing.getCacheMultiplier as jest.Mock).mockImplementation(({ cacheType }) => {
       if (cacheType === 'write') {

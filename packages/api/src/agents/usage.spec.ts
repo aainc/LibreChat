@@ -162,6 +162,26 @@ describe('recordCollectedUsage', () => {
       expect(mockSpendTokens).not.toHaveBeenCalled();
     });
 
+    it('tags structured spends with the producing provider for TTL-aware cache rates', async () => {
+      const collectedUsage: UsageMetadata[] = [
+        {
+          input_tokens: 100,
+          output_tokens: 50,
+          model: 'claude-sonnet-4-6',
+          provider: 'anthropic',
+          input_token_details: { cache_creation: 40, cache_read: 20 },
+        },
+      ];
+
+      await recordCollectedUsage(deps, { ...baseParams, collectedUsage });
+
+      expect(mockSpendStructuredTokens).toHaveBeenCalledTimes(1);
+      expect(mockSpendStructuredTokens).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'claude-sonnet-4-6', endpoint: 'anthropic' }),
+        expect.anything(),
+      );
+    });
+
     it('should handle single usage entry correctly', async () => {
       const collectedUsage: UsageMetadata[] = [
         { input_tokens: 100, output_tokens: 50, model: 'gpt-4' },

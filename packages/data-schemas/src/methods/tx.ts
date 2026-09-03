@@ -347,32 +347,37 @@ export const tokenValues: Record<string, { prompt: number; completion: number }>
 /**
  * Mapping of model token sizes to their respective multipliers for cached input, read and write.
  * The rates are 1 USD per 1M tokens.
+ *
+ * `write` assumes the default 5m cache TTL (1.25x base input). For Anthropic models,
+ * `write1h` is the 1h extended-TTL write rate (2x base input), applied when
+ * `ANTHROPIC_PROMPT_CACHE_TTL=1h` is set (see getCacheMultiplier). Read rates are
+ * TTL-independent.
  */
-export const cacheTokenValues: Record<string, { write: number; read: number }> = {
-  'claude-3.7-sonnet': { write: 3.75, read: 0.3 },
-  'claude-3-7-sonnet': { write: 3.75, read: 0.3 },
-  'claude-3.5-sonnet': { write: 3.75, read: 0.3 },
-  'claude-3-5-sonnet': { write: 3.75, read: 0.3 },
-  'claude-3.5-haiku': { write: 1, read: 0.08 },
-  'claude-3-5-haiku': { write: 1, read: 0.08 },
-  'claude-3-haiku': { write: 0.3, read: 0.03 },
-  'claude-haiku-4-5': { write: 1.25, read: 0.1 },
-  'claude-sonnet-4': { write: 3.75, read: 0.3 },
-  'claude-sonnet-4-5': { write: 3.75, read: 0.3 },
-  'claude-sonnet-4-6': { write: 3.75, read: 0.3 },
+export const cacheTokenValues: Record<string, { write: number; read: number; write1h?: number }> = {
+  'claude-3.7-sonnet': { write: 3.75, write1h: 6, read: 0.3 },
+  'claude-3-7-sonnet': { write: 3.75, write1h: 6, read: 0.3 },
+  'claude-3.5-sonnet': { write: 3.75, write1h: 6, read: 0.3 },
+  'claude-3-5-sonnet': { write: 3.75, write1h: 6, read: 0.3 },
+  'claude-3.5-haiku': { write: 1, write1h: 1.6, read: 0.08 },
+  'claude-3-5-haiku': { write: 1, write1h: 1.6, read: 0.08 },
+  'claude-3-haiku': { write: 0.3, write1h: 0.5, read: 0.03 },
+  'claude-haiku-4-5': { write: 1.25, write1h: 2, read: 0.1 },
+  'claude-sonnet-4': { write: 3.75, write1h: 6, read: 0.3 },
+  'claude-sonnet-4-5': { write: 3.75, write1h: 6, read: 0.3 },
+  'claude-sonnet-4-6': { write: 3.75, write1h: 6, read: 0.3 },
   // Sonnet 5 introductory pricing through 2026-08-31; revert to { write: 3.75, read: 0.3 } after.
-  'claude-sonnet-5': { write: 2.5, read: 0.2 },
-  'claude-opus-4': { write: 18.75, read: 1.5 },
-  'claude-opus-4-5': { write: 6.25, read: 0.5 },
-  'claude-opus-4-6': { write: 6.25, read: 0.5 },
-  'claude-opus-4-7': { write: 6.25, read: 0.5 },
-  'claude-opus-4-8': { write: 6.25, read: 0.5 },
-  'claude-opus-5': { write: 6.25, read: 0.5 },
-  'claude-fable-5': { write: 12.5, read: 1 },
-  'claude-mythos-5': { write: 12.5, read: 1 },
+  'claude-sonnet-5': { write: 2.5, write1h: 4, read: 0.2 },
+  'claude-opus-4': { write: 18.75, write1h: 30, read: 1.5 },
+  'claude-opus-4-5': { write: 6.25, write1h: 10, read: 0.5 },
+  'claude-opus-4-6': { write: 6.25, write1h: 10, read: 0.5 },
+  'claude-opus-4-7': { write: 6.25, write1h: 10, read: 0.5 },
+  'claude-opus-4-8': { write: 6.25, write1h: 10, read: 0.5 },
+  'claude-opus-5': { write: 6.25, write1h: 10, read: 0.5 },
+  'claude-fable-5': { write: 12.5, write1h: 20, read: 1 },
+  'claude-mythos-5': { write: 12.5, write1h: 20, read: 1 },
   // Fable/Mythos 5.1 cache reads are 0.025x base input, not the usual 0.1x.
-  'claude-fable-5-1': { write: 12.5, read: 0.25 },
-  'claude-mythos-5-1': { write: 12.5, read: 0.25 },
+  'claude-fable-5-1': { write: 12.5, write1h: 20, read: 0.25 },
+  'claude-mythos-5-1': { write: 12.5, write1h: 20, read: 0.25 },
   'gpt-4o': { write: 2.5, read: 1.25 },
   'gpt-4o-mini': { write: 0.15, read: 0.075 },
   'gpt-4.1': { write: 2, read: 0.5 },
@@ -529,6 +534,7 @@ export function createTxMethods(
     {
       write: number;
       read: number;
+      write1h?: number;
     }
   >;
 } {
@@ -663,6 +669,33 @@ export function createTxMethods(
   }
 
   /**
+   * Resolves the standard cache rate for a value key, honoring the extended 1h
+   * TTL write rate (`write1h`) when `ANTHROPIC_PROMPT_CACHE_TTL=1h` is configured.
+   * The 1h rate only applies to usage produced by the Anthropic provider — the
+   * only route that sends the TTL on requests. Claude usage via other providers
+   * (e.g. Bedrock) and models without a `write1h` rate keep the 5m rate.
+   */
+  function getStandardCacheRate(
+    valueKey: string,
+    cacheType: 'write' | 'read',
+    endpoint?: string,
+  ): number | null {
+    const entry = cacheTokenValues[valueKey];
+    if (entry == null) {
+      return null;
+    }
+    if (
+      cacheType === 'write' &&
+      entry.write1h != null &&
+      endpoint === 'anthropic' &&
+      process.env.ANTHROPIC_PROMPT_CACHE_TTL === '1h'
+    ) {
+      return entry.write1h;
+    }
+    return entry[cacheType] ?? null;
+  }
+
+  /**
    * Retrieves the cache multiplier for a given value key and token type.
    * When `inputTokenCount` crosses a model's long-context threshold, the
    * premium cache rate applies instead of the standard one.
@@ -694,7 +727,7 @@ export function createTxMethods(
     if (valueKey && cacheType) {
       return (
         getPremiumCacheRate(valueKey, cacheType, inputTokenCount) ??
-        cacheTokenValues[valueKey]?.[cacheType] ??
+        getStandardCacheRate(valueKey, cacheType, endpoint) ??
         null
       );
     }
@@ -710,7 +743,7 @@ export function createTxMethods(
 
     return (
       getPremiumCacheRate(valueKey, cacheType, inputTokenCount) ??
-      cacheTokenValues[valueKey]?.[cacheType] ??
+      getStandardCacheRate(valueKey, cacheType, endpoint) ??
       null
     );
   }
