@@ -25,6 +25,8 @@ const hasMarker = (m) =>
     dynamicInstructions: 'dynamic memory context',
   });
   const out = await runnable.invoke([
+    new HumanMessage('turn 0'),
+    new AIMessage('answer 0'),
     new HumanMessage('turn 1'),
     new AIMessage('answer 1'),
     new HumanMessage('turn 2'),
@@ -34,16 +36,20 @@ const hasMarker = (m) =>
   const types = out.map((m) => m.getType());
   assert.deepStrictEqual(
     types,
-    ['system', 'human', 'ai', 'human', 'human', 'ai', 'tool'],
+    ['system', 'human', 'ai', 'human', 'ai', 'human', 'human', 'ai', 'tool'],
     'dynamic tail sits before the last human turn',
   );
   assert.ok(hasMarker(out[0]), 'system marker kept');
-  assert.ok(hasMarker(out[2]), 'stable prefix marker kept (needed for cross-turn hits)');
-  assert.ok(hasMarker(out[6]), 'tail marker added on the latest tool result');
+  assert.ok(
+    hasMarker(out[4]),
+    'one stable prefix marker on the latest stable assistant turn (needed for cross-turn hits)',
+  );
+  assert.ok(!hasMarker(out[2]), 'older stable turns carry no marker');
+  assert.ok(hasMarker(out[8]), 'tail marker added on the latest tool result');
   assert.strictEqual(
     out.filter(hasMarker).length,
     3,
-    'system + stable prefix + tail, within Anthropic 4-breakpoint limit',
+    'system + 1 stable prefix + tail = 3, leaving headroom under the Anthropic 4-breakpoint limit',
   );
   console.log(
     'ok: stable prefix markers kept and tail marker placed with dynamic instructions present',
