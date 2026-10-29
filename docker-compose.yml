@@ -73,7 +73,9 @@ services:
     env_file:
       - .env
   code-interpreter:
-    image: ghcr.io/thehapyone/code-interpreter:latest
+    image: librechat-code-interpreter
+    build:
+      context: utils/docker/code-interpreter
     container_name: code-interpreter
     restart: unless-stopped
     user: "${APP_UID:-1000}:${APP_GID:-1000}"
