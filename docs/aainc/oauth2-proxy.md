@@ -49,5 +49,5 @@ LibreChat 本体・DB は変更しない。
 - 認証は fail-closed。oauth2-proxy が落ちると保護サイトは 500 になる (`restart: unless-stopped`)。
 - ログインはホスト別 (cookie はホスト単位, 有効 12h)。新サイトを足すときは redirect URI の追加と conf の追加が要る。
 - LibreChat のアプリ内 Google ログインは変更しない。利用者は Google ログインを 2 回通る (2 回目は同一 Google セッションで 1 クリック)。`ALLOW_EMAIL_LOGIN=false` は別途の任意施策。
-- 期限切れ後の XHR/SSE は 403 (サインインページ) になる。画面再読み込みで再ログインする。
+- 期限切れ後の XHR/SSE は Google への 302 になりエラーとして見える。画面再読み込みで再ログインする。
 - `nginx -t` 相当は本番側でしか検証できない (リポジトリ側に nginx が無い)。初回は必ず `check` -> カナリアの順で進める。
