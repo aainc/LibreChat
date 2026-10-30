@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # chieco-server: oauth2-proxy (Google, aainc.co.jp only) + nginx auth_request.
 # Usage: setup.sh check | apply <site...|all> | rollback
-# Sites: chieco claude-dojo pptx-kaname slide
+# Sites: chieco claude-dojo pptx-kaname slide ax-assessment
 # Idempotent. Never prints secret values. nginx is only reloaded, never restarted.
 set -euo pipefail
 
@@ -10,7 +10,7 @@ APP_DIR="${APP_DIR:-/home/ubuntu/oauth2-proxy}"
 NGINX_DIR="${NGINX_DIR:-/etc/nginx}"
 BACKUP_DIR="$APP_DIR/backup"
 SNIPPETS=(oauth2-locations.conf oauth2-protect.conf)
-ALL_SITES=(chieco claude-dojo pptx-kaname slide)
+ALL_SITES=(chieco claude-dojo pptx-kaname slide ax-assessment)
 [ "$(id -u)" -eq 0 ] && SUDO="${SUDO-}" || SUDO="${SUDO-sudo -n}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
